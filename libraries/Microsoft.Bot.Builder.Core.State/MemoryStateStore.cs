@@ -138,6 +138,36 @@ namespace Microsoft.Bot.Builder.Core.State
             return Task.CompletedTask;
         }
 
+        public Task Delete(string partitionKey)
+        {
+            _store.Remove(partitionKey);
+
+            return Task.CompletedTask;
+        }
+
+        public Task Delete(string partitionKey, string key)
+        {
+            if(_store.TryGetValue(partitionKey, out var entriesForPartition))
+            {
+                entriesForPartition.Remove(key);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task Delete(string partitionKey, IEnumerable<string> keys)
+        {
+            if (_store.TryGetValue(partitionKey, out var entriesForPartition))
+            {
+                foreach (string key in keys)
+                {
+                    entriesForPartition.Remove(key);
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
         private sealed class MemoryStateStoreEntry : IStateStoreEntry
         {
             private string _partitionKey;

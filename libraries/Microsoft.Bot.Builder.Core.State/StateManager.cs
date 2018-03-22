@@ -21,6 +21,11 @@ namespace Microsoft.Bot.Builder.Core.State
 
         public async Task<TState> Get<TState>(string key) where TState : class
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
             if (!_state.TryGetValue(key, out var stateEntry))
             {
                 var stateStoreEntry = await StateStore.Load(Namespace, key);
@@ -35,11 +40,16 @@ namespace Microsoft.Bot.Builder.Core.State
                 return stateStoreEntry.GetValue<TState>();
             }
 
-            return stateEntry.StateStoreEntry.GetValue<TState>();
+            return stateEntry.IsPendingDeletion ? default(TState) : stateEntry.StateStoreEntry.GetValue<TState>();
         }
 
         public void Set<TState>(string key, TState state) where TState : class
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
             if (!_state.TryGetValue(key, out var stateEntry))
             {
                 var stateStoreEntry = StateStore.CreateNewStateEntry(Namespace, key);
@@ -49,6 +59,7 @@ namespace Microsoft.Bot.Builder.Core.State
             else
             {
                 stateEntry.IsDirty = true;
+                stateEntry.IsPendingDeletion = false;
             }
 
             stateEntry.StateStoreEntry.SetValue(state);
@@ -80,6 +91,19 @@ namespace Microsoft.Bot.Builder.Core.State
             }
         }
 
+        public void Delete(string key)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
+            if (_state.TryGetValue(key, out var stateEntry))
+            {
+                stateEntry.IsPendingDeletion = true;
+            }
+        }
+
         public async Task SaveChanges()
         {
             var dirtyStateEntries = _state.Values.Where(se => se.IsDirty);
@@ -89,6 +113,15 @@ namespace Microsoft.Bot.Builder.Core.State
             foreach (var dirtyStateEntry in dirtyStateEntries)
             {
                 dirtyStateEntry.IsDirty = false;
+            }
+
+            var stateEntryKeysPendingDeletion = _state.Values.Where(se => se.IsPendingDeletion).Select(se => se.StateStoreEntry.Key).ToList();
+
+            await StateStore.Delete(Namespace, stateEntryKeysPendingDeletion);
+
+            foreach (var key in stateEntryKeysPendingDeletion)
+            {
+                _state.Remove(key);
             }
         }
 
@@ -102,6 +135,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
             public IStateStoreEntry StateStoreEntry;
             public bool IsDirty;
+            public bool IsPendingDeletion;
         }
     }
 }

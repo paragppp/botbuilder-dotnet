@@ -9,6 +9,8 @@ namespace Microsoft.Bot.Builder.Core.State
 
         void Set<TState>(string key, TState state) where TState : class;
 
+        void Delete(string key);
+
         Task Load();
 
         Task Load(IEnumerable<string> keys);
@@ -22,7 +24,7 @@ namespace Microsoft.Bot.Builder.Core.State
             stateManager.Get<TState>(typeof(TState).Name);
 
         public static void Set<TState>(this IStateManager stateManager, TState state) where TState : class =>
-            stateManager.Set<TState>(typeof(TState).Name, state);
+            stateManager.Set(typeof(TState).Name, state);
 
     }
 }

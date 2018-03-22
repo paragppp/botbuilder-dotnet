@@ -5,6 +5,8 @@ namespace Microsoft.Bot.Builder.Core.State
 {
     public interface IStateStore
     {
+        IStateStoreEntry CreateNewStateEntry(string partitionKey, string key);
+
         /// <summary>
         /// Loads all state entries under the specified <paramref name="partitionKey">partition</paramref>.
         /// </summary>
@@ -22,9 +24,12 @@ namespace Microsoft.Bot.Builder.Core.State
 
         Task<IEnumerable<IStateStoreEntry>> Load(string partitionKey, IEnumerable<string> keys);
 
-
         Task Save(IEnumerable<IStateStoreEntry> values);
 
-        IStateStoreEntry CreateNewStateEntry(string partitionKey, string key);
+        Task Delete(string partitionKey);
+
+        Task Delete(string partitionKey, string key);
+
+        Task Delete(string partitionKey, IEnumerable<string> keys);
     }
 }
