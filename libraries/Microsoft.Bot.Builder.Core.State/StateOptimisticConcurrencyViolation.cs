@@ -6,10 +6,6 @@ namespace Microsoft.Bot.Builder.Core.State
     [Serializable]
     internal class StateOptimisticConcurrencyViolation : Exception
     {
-        public StateOptimisticConcurrencyViolation()
-        {
-        }
-
         public StateOptimisticConcurrencyViolation(string message) : base(message)
         {
         }
