@@ -27,7 +27,7 @@ namespace Microsoft.Bot.Builder
         private readonly IList<UpdateActivityHandler> _onUpdateActivity = new List<UpdateActivityHandler>();
         private readonly IList<DeleteActivityHandler> _onDeleteActivity = new List<DeleteActivityHandler>();
 
-        private readonly TurnContextServiceCollection _services = new TurnContextServiceCollection();
+        private readonly TurnContextServiceCollection _services;
 
         /// <summary>
         /// Creates a context object.
@@ -42,6 +42,8 @@ namespace Microsoft.Bot.Builder
         {
             _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
             _activity = activity ?? throw new ArgumentNullException(nameof(activity));
+
+            _services = new TurnContextServiceCollection(adapter.Services);
         }
 
         /// <summary>

@@ -38,7 +38,22 @@ namespace Microsoft.Bot.Builder.Core.State
 
             if (stateManager == default(TStateManager))
             {
-                var stateStore = turnContextServices.Get<IStateStore>(preferredStateStoreServiceKey) ?? turnContextServices.Get<IStateStore>();
+                var stateStore = default(IStateStore);
+
+                if (preferredStateStoreServiceKey != null)
+                {
+                    stateStore = turnContextServices.Get<IStateStore>(preferredStateStoreServiceKey);
+                }
+
+                if(stateStore == default(IStateStore))
+                { 
+                    stateStore = turnContextServices.Get<IStateStore>();
+                }
+
+                if (stateStore == default(IStateStore))
+                {
+                    throw new InvalidOperationException($"The state management feature requires an {nameof(IStateStore)} implementation to have been registered in the services collection, but none was found.");
+                }
 
                 stateManager = createStateManager(stateStore);
 

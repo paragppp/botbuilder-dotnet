@@ -35,12 +35,26 @@ namespace Microsoft.Bot.Builder
     public sealed class TurnContextServiceCollection : ITurnContextServiceCollection
     {
         private readonly Dictionary<string, object> _services = new Dictionary<string, object>();
+        private readonly IBotAdapterServiceFactoryCollection _botAdapterServiceFactoryCollection;
+
+        public TurnContextServiceCollection(IBotAdapterServiceFactoryCollection botAdapterServiceFactoryCollection)
+        {
+            _botAdapterServiceFactoryCollection = botAdapterServiceFactoryCollection ?? throw new ArgumentNullException(nameof(botAdapterServiceFactoryCollection));
+        }
 
         public TService Get<TService>(string key) where TService : class
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
 
-            _services.TryGetValue(key, out var service);
+            if(!_services.TryGetValue(key, out var service))
+            {
+                service = _botAdapterServiceFactoryCollection.Get<TService>(key);
+
+                if (service != default(TService))
+                {
+                    _services.Add(key, service);
+                }
+            }
 
             return service as TService;
         }
