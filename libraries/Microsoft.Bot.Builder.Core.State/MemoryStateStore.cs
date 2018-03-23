@@ -127,11 +127,11 @@ namespace Microsoft.Bot.Builder.Core.State
                             {
                                 throw new StateOptimisticConcurrencyViolation($"An optimistic concurrency violation occurred when trying to save state for: PartitionKey={memoryStoreEntry.PartitionKey};Key={memoryStoreEntry.Key}. The original ETag value was {memoryStoreEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
                             }
-
-                            entriesForPartition[entry.Key] = memoryStoreEntry;
-                            memoryStoreEntry.ETag = Guid.NewGuid().ToString("N");
                         }
                     }
+
+                    memoryStoreEntry.ETag = Guid.NewGuid().ToString("N");
+                    entriesForPartition[memoryStoreEntry.Key] = memoryStoreEntry;                    
                 }
             }
 
@@ -168,49 +168,28 @@ namespace Microsoft.Bot.Builder.Core.State
             return Task.CompletedTask;
         }
 
-        private sealed class MemoryStateStoreEntry : IStateStoreEntry
+        private sealed class MemoryStateStoreEntry : StateStoreEntry
         {
-            private string _partitionKey;
-            private string _key;
             private object _value;
-            private string _eTag;
 
-            public MemoryStateStoreEntry(string partitionKey, string key)
+            public MemoryStateStoreEntry(string partitionKey, string key) : base(partitionKey, key)
             {
-                _partitionKey = partitionKey ?? throw new ArgumentNullException(nameof(partitionKey));
-                _key = key ?? throw new ArgumentNullException(nameof(key));
 
             }
 
-            public MemoryStateStoreEntry(string partitionKey, string key, object value) : this(partitionKey, key)
-            {
-                _value = value ?? throw new ArgumentNullException(nameof(value));
-            }
-
-            public MemoryStateStoreEntry(string partitionKey, string key, object value, string eTag) : this(partitionKey, key, value)
-            {
-                _eTag = eTag ?? throw new ArgumentNullException(nameof(eTag));
-            }
-
-            public string PartitionKey => _partitionKey;
-
-            public string Key => _key;
-
-            public string ETag
-            {
-                get => _eTag;
-                internal set
-                {
-                    _eTag = value;
-                }
-            }
-
-            public T GetValue<T>() where T : class => _value as T;
-
-            public void SetValue<T>(T value) where T : class
+            public MemoryStateStoreEntry(string partitionKey, string key, object value) : base(partitionKey, key)
             {
                 _value = value;
             }
+
+            public MemoryStateStoreEntry(string partitionKey, string key, object value, string eTag) : base(partitionKey, key, eTag)
+            {
+                _value = value;
+            }
+
+            public override T GetValue<T>() => _value as T;
+
+            public override void SetValue<T>(T value) => _value = value;
         }
     }
 }
