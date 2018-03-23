@@ -58,6 +58,15 @@ namespace Microsoft.Bot.Builder
             return this;
         }
 
+        private readonly Dictionary<string, Func<object>> _services = new Dictionary<string, Func<object>>();
+
+        public BotAdapter UseService(string serviceName, Func<object> serviceFactory)
+        {
+            _services.Add(serviceName, serviceFactory);
+
+            return this;
+        }
+
         /// <summary>
         /// When overridden in a derived class, sends activities to the conversation.
         /// </summary>       

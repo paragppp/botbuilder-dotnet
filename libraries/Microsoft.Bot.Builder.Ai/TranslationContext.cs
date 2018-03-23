@@ -8,7 +8,7 @@ using Microsoft.Bot.Builder.Core.Extensions;
 
 namespace Microsoft.Bot.Builder.Ai
 {
-    public class TranslationContext : FlexObject
+    public class TranslationContext
     {
         /// <summary>
         /// Original pre-translation text 
