@@ -54,7 +54,9 @@ namespace Microsoft.Bot.Builder.Core.State
             {
                 var stateStoreEntry = StateStore.CreateNewStateEntry(Namespace, key);
 
-                _state.Add(key, new StateEntry(stateStoreEntry, isDirty: true));
+                stateEntry = new StateEntry(stateStoreEntry, isDirty: true);
+
+                _state.Add(key, stateEntry);
             }
             else
             {

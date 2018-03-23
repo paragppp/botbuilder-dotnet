@@ -24,15 +24,19 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
     public class BotStateTests
     {
         [TestMethod]
-        public async Task State_DoNOTRememberContextState()
+        public async Task State_ThrowIfNoConfiguredStateStore()
         {
-
             TestAdapter adapter = new TestAdapter();
 
             await new TestFlow(adapter, async (context) =>
                    {
-                       var state = await context.ConversationState().Get<TestState>();
-                       Assert.IsNull(state);
+                       try
+                       {
+                           await context.ConversationState().Get<TestState>();
+                       }
+                       catch(InvalidOperationException)
+                       {
+                       }
                    }
                 )
                 .Send("set value")
@@ -40,110 +44,104 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         }
 
         [TestMethod]
-        public async Task State_RememberIStoreItemUserState()
+        public async Task State_UnsetStateShouldReturnNull()
         {
             var adapter = new TestAdapter()
-                .UseService(, new MemoryStateStore());
+                .UseService((IStateStore)new MemoryStateStore());
 
             await new TestFlow(adapter,
                     async (context) =>
                     {
-                        var userState = await context.UserState().Get<TestState>();
-                        Assert.IsNotNull(userState, "user state should exist");
+                        var testState = await context.UserState().Get<TestState>();
+
+                        Assert.IsNull(testState, "test state should not exist yet as it hasn't yet been created");
+                    }
+                )
+                .Send("test message")
+                .StartTest();
+        }
+
+        [TestMethod]
+        public async Task State_UnsavedStateShouldNotPersist()
+        {
+            var adapter = new TestAdapter()
+                .UseService((IStateStore)new MemoryStateStore());
+
+            await new TestFlow(adapter,
+                    async (context) =>
+                    {
+                        var userState = context.UserState();
+
+                        Assert.IsNotNull(userState);
+
+                        var testState = await userState.Get<TestState>();
+
+                        switch (context.Activity.Text)
+                        {
+                            case "don't save on this turn":
+                                Assert.IsNull(testState, "test state should not exist yet");
+
+                                testState = new TestState
+                                {
+                                    Value = "test"
+                                };
+
+                                userState.Set(testState);
+
+                                break;
+
+                            case "should be null on this turn":
+                                Assert.IsNull(testState, "test state should not exist because it was not saved");
+
+                                break;
+                        }
+                    }
+                )
+                .Send("don't save on this turn")
+                .Send("should be null on this turn")
+                .StartTest();
+        }
+
+        [TestMethod]
+        public async Task State_SavedStateIsRecalledOnNextTurn()
+        {
+            var adapter = new TestAdapter()
+                .UseService((IStateStore)new MemoryStateStore());
+
+            await new TestFlow(adapter,
+                    async (context) =>
+                    {
+                        var userState = context.UserState();
+
+                        Assert.IsNotNull(userState);
+
+                        var testState = await userState.Get<TestState>();
+
                         switch (context.Activity.Text)
                         {
                             case "set value":
-                                userState.Value = "test";
-                                await context.SendActivity("value saved");
-                                break;
-                            case "get value":
-                                await context.SendActivity(userState.Value);
-                                break;
-                        }
-                    }
-                )
-                .Test("set value", "value saved")
-                .Test("get value", "test")
-                .StartTest();
-        }
+                                Assert.IsNull(testState, "test state should not exist yet");
 
-        [TestMethod]
-        public async Task State_RememberPocoUserState()
-        {
-            var adapter = new TestAdapter()
-                .Use(new UserState<TestPocoState>(new MemoryStorage()));
-            await new TestFlow(adapter,
-                    async (context) =>
-                    {
-                        var userState = await context.UserState().Get<TestPocoState>();
-                        Assert.IsNotNull(userState, "user state should exist");
-                        switch (context.Activity.AsMessageActivity().Text)
-                        {
-                            case "set value":
-                                userState.Value = "test";
-                                await context.SendActivity("value saved");
-                                break;
-                            case "get value":
-                                await context.SendActivity(userState.Value);
-                                break;
-                        }
-                    }
-                )
-                .Test("set value", "value saved")
-                .Test("get value", "test")
-                .StartTest();
-        }
+                                testState = new TestState
+                                {
+                                    Value = "test"
+                                };
 
-        [TestMethod]
-        public async Task State_RememberIStoreItemConversationState()
-        {
-            TestAdapter adapter = new TestAdapter()
-                .Use(new ConversationState<TestState>(new MemoryStorage()));
-            await new TestFlow(adapter,
-                    async (context) =>
-                    {
-                        var conversationState = await context.ConversationState().Get<TestState>();
-                        Assert.IsNotNull(conversationState, "state.conversation should exist");
-                        switch (context.Activity.AsMessageActivity().Text)
-                        {
-                            case "set value":
-                                conversationState.Value = "test";
-                                await context.SendActivity("value saved");
-                                break;
-                            case "get value":
-                                await context.SendActivity(conversationState.Value);
-                                break;
-                        }
-                    }
-                )
-                .Test("set value", "value saved")
-                .Test("get value", "test")
-                .StartTest();
-        }
+                                userState.Set(testState);
+                                await userState.SaveChanges();
 
-        [TestMethod]
-        public async Task State_RememberPocoConversationState()
-        {
-            TestAdapter adapter = new TestAdapter()
-                .Use(new ConversationState<TestPocoState>(new MemoryStorage()));
-            await new TestFlow(adapter,
-                    async (context) =>
-                    {
-                        var conversationState = await context.ConversationState().Get<TestPocoState>();
-                        Assert.IsNotNull(conversationState, "state.conversation should exist");
-                        switch (context.Activity.AsMessageActivity().Text)
-                        {
-                            case "set value":
-                                conversationState.Value = "test";
-                                await context.SendActivity("value saved");
                                 break;
+
                             case "get value":
-                                await context.SendActivity(conversationState.Value);
+                                Assert.IsNotNull(testState, "test state should exist now");
+
+                                await context.SendActivity(testState.Value);
+
                                 break;
                         }
                     }
                 )
-                .Test("set value", "value saved")
+                .Send("set value")
                 .Test("get value", "test")
                 .StartTest();
         }
@@ -151,66 +149,42 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         [TestMethod]
         public async Task State_CustomStateManagerTest()
         {
+            string testStateValue = Guid.NewGuid().ToString();
 
-            string testGuid = Guid.NewGuid().ToString();
             TestAdapter adapter = new TestAdapter()
-                .Use(new CustomKeyState(new MemoryStorage()));
+                .UseService((IStateStore)new MemoryStateStore());
+
             await new TestFlow(adapter, async (context) =>
                     {
-                        var customState = await context.State("custom").Get<CustomState>();
+                        var customState = context.State("custom");
+
                         switch (context.Activity.AsMessageActivity().Text)
                         {
                             case "set value":
-                                customState.CustomString = testGuid;
+                                customState.Set(new TestState
+                                {
+                                    Value = testStateValue
+                                });
+
+                                await customState.SaveChanges();
+
                                 await context.SendActivity("value saved");
                                 break;
+
                             case "get value":
-                                await context.SendActivity(customState.CustomString);
+                                var stateEntry = await customState.Get<TestState>();
+
+                                Assert.IsNotNull(stateEntry);
+
+                                await context.SendActivity(stateEntry.Value);
+
                                 break;
                         }
                     }
                 )
                 .Test("set value", "value saved")
-                .Test("get value", testGuid.ToString())
+                .Test("get value", testStateValue)
                 .StartTest();
-        }
-
-        public class TypedObject
-        {
-            public string Name { get; set; }
-        }
-
-        [TestMethod]
-        public async Task State_RoundTripTypedObject()
-        {
-            TestAdapter adapter = new TestAdapter()
-                .Use(new ConversationState<TypedObject>(new MemoryStorage()));
-
-            await new TestFlow(adapter,
-                    async (context) =>
-                    {
-                        var conversation = await context.ConversationState().Get<TypedObject>();
-                        Assert.IsNotNull(conversation, "conversationstate should exist");
-                        switch (context.Activity.AsMessageActivity().Text)
-                        {
-                            case "set value":
-                                conversation.Name = "test";
-                                await context.SendActivity("value saved");
-                                break;
-                            case "get value":
-                                await context.SendActivity(conversation.GetType().Name);
-                                break;
-                        }
-                    }
-                )
-                .Test("set value", "value saved")
-                .Test("get value", "TypedObject")
-                .StartTest();
-        }
-
-        public class CustomState
-        {
-            public string CustomString { get; set; }
         }
     }
 }
