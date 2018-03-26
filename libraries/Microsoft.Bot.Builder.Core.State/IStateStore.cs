@@ -5,31 +5,36 @@ namespace Microsoft.Bot.Builder.Core.State
 {
     public interface IStateStore
     {
-        IStateStoreEntry CreateNewStateEntry(string partitionKey, string key);
+        IStateStoreEntry CreateNewStateEntry(string stateNamespace, string key);
 
         /// <summary>
-        /// Loads all state entries under the specified <paramref name="partitionKey">partition</paramref>.
+        /// Loads all state entries under the specified <paramref name="stateNamespace">partition</paramref>.
         /// </summary>
-        /// <param name="partitionKey"></param>
+        /// <param name="stateNamespace"></param>
         /// <returns></returns>
-        Task<IEnumerable<IStateStoreEntry>> Load(string partitionKey);
+        Task<IEnumerable<IStateStoreEntry>> Load(string stateNamespace);
 
         /// <summary>
-        /// Loads a single piece of state, identified by its <paramref name="key"/> from the given <paramref name="partitionKey">partition</paramref>.
+        /// Loads a single piece of state, identified by its <paramref name="key"/> from the given <paramref name="stateNamespace">partition</paramref>.
         /// </summary>
-        /// <param name="partitionKey"></param>
+        /// <param name="stateNamespace"></param>
         /// <param name="key"></param>
         /// <returns></returns>
-        Task<IStateStoreEntry> Load(string partitionKey, string key);
+        Task<IStateStoreEntry> Load(string stateNamespace, string key);
 
-        Task<IEnumerable<IStateStoreEntry>> Load(string partitionKey, IEnumerable<string> keys);
+        Task<IEnumerable<IStateStoreEntry>> Load(string stateNamespace, IEnumerable<string> keys);
 
-        Task Save(IEnumerable<IStateStoreEntry> values);
+        Task Save(IEnumerable<IStateStoreEntry> stateStoreEntries);
 
-        Task Delete(string partitionKey);
+        Task Delete(string stateNamespace);
 
-        Task Delete(string partitionKey, string key);
+        Task Delete(string stateNamespace, IEnumerable<string> keys);
+    }
 
-        Task Delete(string partitionKey, IEnumerable<string> keys);
+    public static class StateStoreExtensions
+    {
+        public static Task Save(this IStateStore stateStore, params IStateStoreEntry[] stateStoreEntries) => stateStore.Save((IEnumerable<IStateStoreEntry>)stateStoreEntries);
+
+        public static Task Delete(this IStateStore stateStore, string stateNamespace, params string[] keys) => stateStore.Delete(stateNamespace, (IEnumerable<string>)keys);
     }
 }

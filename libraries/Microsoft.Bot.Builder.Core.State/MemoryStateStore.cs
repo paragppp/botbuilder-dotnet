@@ -13,7 +13,7 @@ namespace Microsoft.Bot.Builder.Core.State
         {
         }
 
-        public IStateStoreEntry CreateNewStateEntry(string partitionKey, string key) => new MemoryStateStoreEntry(partitionKey, key);
+        public IStateStoreEntry CreateNewStateEntry(string partitionKey, string key) => new StateStoreEntry(partitionKey, key);
 
         public Task<IEnumerable<IStateStoreEntry>> Load(string partitionKey)
         {
@@ -94,7 +94,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
             foreach (var entry in values)
             {
-                entriesForPartition.Add(entry.Key, new MemoryStateStoreEntry(partitionKey, entry.Key, entry.Value));
+                entriesForPartition.Add(entry.Key, new StateStoreEntry(partitionKey, entry.Key, entry.Value));
 
             }
 
@@ -103,7 +103,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
         public Task Save(IEnumerable<IStateStoreEntry> entries)
         {
-            foreach (var entityGroup in entries.GroupBy(e => e.PartitionKey))
+            foreach (var entityGroup in entries.GroupBy(e => e.Namespace))
             {
                 if (!_store.TryGetValue(entityGroup.Key, out var entriesForPartition))
                 {
@@ -114,24 +114,24 @@ namespace Microsoft.Bot.Builder.Core.State
 
                 foreach (var entry in entries)
                 {
-                    if(!(entry is MemoryStateStoreEntry memoryStoreEntry))
+                    if(!(entry is StateStoreEntry stateStoreEntry))
                     {
-                        throw new ArgumentException($"Specified value is not a {nameof(MemoryStateStoreEntry)}.");
+                        throw new ArgumentException($"Specified value is not of type {nameof(StateStoreEntry)}.");
                     }
 
-                    if (entriesForPartition.TryGetValue(memoryStoreEntry.Key, out var existingEntry))
+                    if (entriesForPartition.TryGetValue(stateStoreEntry.Key, out var existingEntry))
                     {
                         if(!Object.ReferenceEquals(entry, existingEntry))
                         {
-                            if (memoryStoreEntry.ETag != existingEntry.ETag)
+                            if (stateStoreEntry.ETag != existingEntry.ETag)
                             {
-                                throw new StateOptimisticConcurrencyViolation($"An optimistic concurrency violation occurred when trying to save state for: PartitionKey={memoryStoreEntry.PartitionKey};Key={memoryStoreEntry.Key}. The original ETag value was {memoryStoreEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
+                                throw new StateOptimisticConcurrencyViolation($"An optimistic concurrency violation occurred when trying to save state for: PartitionKey={stateStoreEntry.Namespace};Key={stateStoreEntry.Key}. The original ETag value was {stateStoreEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
                             }
                         }
                     }
 
-                    memoryStoreEntry.ETag = Guid.NewGuid().ToString("N");
-                    entriesForPartition[memoryStoreEntry.Key] = memoryStoreEntry;                    
+                    stateStoreEntry.ETag = Guid.NewGuid().ToString("N");
+                    entriesForPartition[stateStoreEntry.Key] = stateStoreEntry;                    
                 }
             }
 
@@ -166,30 +166,6 @@ namespace Microsoft.Bot.Builder.Core.State
             }
 
             return Task.CompletedTask;
-        }
-
-        private sealed class MemoryStateStoreEntry : StateStoreEntry
-        {
-            private object _value;
-
-            public MemoryStateStoreEntry(string partitionKey, string key) : base(partitionKey, key)
-            {
-
-            }
-
-            public MemoryStateStoreEntry(string partitionKey, string key, object value) : base(partitionKey, key)
-            {
-                _value = value;
-            }
-
-            public MemoryStateStoreEntry(string partitionKey, string key, object value, string eTag) : base(partitionKey, key, eTag)
-            {
-                _value = value;
-            }
-
-            public override T GetValue<T>() => _value as T;
-
-            public override void SetValue<T>(T value) => _value = value;
         }
     }
 }
