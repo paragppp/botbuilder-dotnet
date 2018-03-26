@@ -2,7 +2,8 @@
 // Licensed under the MIT License.
 
 using System.Threading.Tasks;
-using Microsoft.Bot.Builder.Core.Extensions; 
+using Microsoft.Bot.Builder.Core.Extensions;
+using Microsoft.Bot.Builder.Core.State;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Microsoft.Bot.Builder.Core.Extensions.Tests
@@ -12,50 +13,44 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
     [TestCategory("Storage - Memory")]
     public class MemoryStorageTests : StorageBaseTests
     {
-        private IStorage storage;
+        private IStateStore stateStore;
 
         public MemoryStorageTests() { }
 
         [TestInitialize]
         public void initialize()
         {
-            storage = new MemoryStorage();
+            stateStore = new MemoryStateStore();
         }
 
         [TestMethod]
         public async Task MemoryStorage_CreateObjectTest()
         {
-            await base._createObjectTest(storage);
+            await base._createObjectTest(stateStore);
         }
 
         [TestMethod]
         public async Task MemoryStorage_ReadUnknownTest()
         {
-            await base._readUnknownTest(storage);
+            await base._readUnknownTest(stateStore);
         }
 
         [TestMethod]
         public async Task MemoryStorage_UpdateObjectTest()
         {
-            await base._updateObjectTest(storage);
+            await base._updateObjectTest(stateStore);
         }
 
         [TestMethod]
         public async Task MemoryStorage_DeleteObjectTest()
         {
-            await base._deleteObjectTest(storage);
+            await base._deleteObjectTest(stateStore);
         }
 
         [TestMethod]
         public async Task MemoryStorage_HandleCrazyKeys()
         {
-            await base._handleCrazyKeys(storage);
-        }
-
-        [TestMethod]
-        public async Task MemoryStorage_TypedSerialization()
-        {
-            await base._typedSerialization(this.storage);
+            await base._handleCrazyKeys(stateStore);
         }
     }
 }

@@ -9,7 +9,7 @@
 
         }
 
-        public DeferredValueStateStoreEntry(string stateNamespace, string key, string eTag) : base(stateNamespace, key)
+        public DeferredValueStateStoreEntry(string stateNamespace, string key, string eTag) : base(stateNamespace, key, eTag)
         {
         }
 
@@ -34,6 +34,6 @@
             base.SetValue(value);
         }
 
-        protected abstract T MaterializeValue<T>() where T : class;
+        protected abstract T MaterializeValue<T>() where T : class, new();
     }
 }

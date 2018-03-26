@@ -8,7 +8,7 @@
 
         string ETag { get; }
 
-        T GetValue<T>() where T : class;
+        T GetValue<T>() where T : class, new();
 
         void SetValue<T>(T value) where T : class;
     }

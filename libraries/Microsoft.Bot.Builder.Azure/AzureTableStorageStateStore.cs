@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Core.State;
 using Microsoft.WindowsAzure.Storage;
@@ -19,7 +20,11 @@ namespace Microsoft.Bot.Builder.Azure
     /// </summary>
     public class AzureTableStorageStateStore : IStateStore
     {
-        private static HashSet<string> CheckedTables = new HashSet<string>();
+        private const string BotRawStateNamespaceTableStoragePropertyName = "__Bot_RawStateNamespace";
+        private const string BotRawKeyTableStoragePropertyName = "__Bot_RawKey";
+
+        private static readonly HashSet<string> CheckedTables = new HashSet<string>();
+        private static readonly Regex TableStorageKeyInvalidCharactersRegex = new Regex("[!@#$%^&*\\(\\)~/\\\\><,.?';\"\u0000-\u001F\u007F-\u009F]", RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
         private readonly CloudTable _table;
 
@@ -40,13 +45,20 @@ namespace Microsoft.Bot.Builder.Azure
 
         public CloudTable Table => _table;
 
-        public IStateStoreEntry CreateNewStateEntry(string stateNamespace, string key) => new AzureTableStorageEntityStateStoreEntry(new DynamicTableEntity(stateNamespace, key));
-        
+        public IStateStoreEntry CreateNewStateEntry(string stateNamespace, string key)
+        {
+            var tableEntity = new DynamicTableEntity(NormalizeKeyValueForTableStorage(stateNamespace), NormalizeKeyValueForTableStorage(key));
+            tableEntity.Properties[BotRawStateNamespaceTableStoragePropertyName] = new EntityProperty(stateNamespace);
+            tableEntity.Properties[BotRawKeyTableStoragePropertyName] = new EntityProperty(key);
+
+            return new AzureTableStorageEntityStateStoreEntry(tableEntity);
+        }
+
         public async Task<IEnumerable<IStateStoreEntry>> Load(string stateNamespace)
         {
             var queryContinuationToken = default(TableContinuationToken);
             var query = new TableQuery()
-                            .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, stateNamespace));
+                            .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, NormalizeKeyValueForTableStorage(stateNamespace)));
 
 
             var results = new List<IStateStoreEntry>();
@@ -65,16 +77,16 @@ namespace Microsoft.Bot.Builder.Azure
 
         public async Task<IStateStoreEntry> Load(string stateNamespace, string key)
         {
-            var tableResult = await _table.ExecuteAsync(TableOperation.Retrieve(stateNamespace, key)).ConfigureAwait(false);
+            var tableResult = await _table.ExecuteAsync(TableOperation.Retrieve(NormalizeKeyValueForTableStorage(stateNamespace), NormalizeKeyValueForTableStorage(key))).ConfigureAwait(false);
 
-            return new AzureTableStorageEntityStateStoreEntry((DynamicTableEntity)tableResult.Result);
+            return tableResult.Result != null ? new AzureTableStorageEntityStateStoreEntry((DynamicTableEntity)tableResult.Result) : default(IStateStoreEntry);
         }
 
         public async Task<IEnumerable<IStateStoreEntry>> Load(string stateNamespace, IEnumerable<string> keys)
         {
             var loadTasks = new List<Task<IStateStoreEntry>>();
 
-            foreach(var key in keys)
+            foreach (var key in keys)
             {
                 loadTasks.Add(Load(stateNamespace, key));
             }
@@ -83,7 +95,7 @@ namespace Microsoft.Bot.Builder.Azure
 
             var results = new List<IStateStoreEntry>(loadTasks.Count);
 
-            foreach(var loadTask in loadTasks)
+            foreach (var loadTask in loadTasks)
             {
                 results.Add(loadTask.Result);
             }
@@ -93,7 +105,7 @@ namespace Microsoft.Bot.Builder.Azure
 
         public async Task Save(IEnumerable<IStateStoreEntry> stateStoreEntries)
         {
-            foreach(var stateNamespaceBatch in stateStoreEntries.GroupBy(stateStoreEntry => stateStoreEntry.Namespace))
+            foreach (var stateNamespaceBatch in stateStoreEntries.GroupBy(stateStoreEntry => stateStoreEntry.Namespace))
             {
                 var partitionBatchOperation = new TableBatchOperation();
 
@@ -107,52 +119,102 @@ namespace Microsoft.Bot.Builder.Azure
                     var value = azureTableStorageStateStoreEntry.RawValue;
                     var tableEntity = azureTableStorageStateStoreEntry.TableEntity;
 
-                    var operation = value == null ? TableOperation.Delete(tableEntity) : TableOperation.InsertOrMerge(tableEntity);
+                    var operation = default(TableOperation);
+
+                    if (value == null)
+                    {
+                        operation = TableOperation.InsertOrReplace(tableEntity);
+                    }
+                    else
+                    {
+                        var properties = TableEntity.WriteUserObject(value, new OperationContext());
+
+                        properties.Add(BotRawStateNamespaceTableStoragePropertyName, tableEntity.Properties[BotRawStateNamespaceTableStoragePropertyName]);
+                        properties.Add(BotRawKeyTableStoragePropertyName, tableEntity.Properties[BotRawKeyTableStoragePropertyName]);
+
+                        tableEntity.Properties = properties;
+
+                        operation = TableOperation.InsertOrReplace(tableEntity);
+                    }
 
                     partitionBatchOperation.Add(operation);
 
                     if (partitionBatchOperation.Count == 100)
                     {
-                        await _table.ExecuteBatchAsync(partitionBatchOperation);
+                        await _table.ExecuteBatchAsync(partitionBatchOperation).ConfigureAwait(false);
 
                         partitionBatchOperation.Clear();
                     }
                 }
 
-                if(partitionBatchOperation.Count > 0)
+                if (partitionBatchOperation.Count > 0)
                 {
-                    await _table.ExecuteBatchAsync(partitionBatchOperation);
+                    await _table.ExecuteBatchAsync(partitionBatchOperation).ConfigureAwait(false);
                 }
             }
         }
 
-        public Task Delete(string stateNamespace)
+        public async Task Delete(string stateNamespace)
         {
-            throw new NotImplementedException();
+            var queryContinuationToken = default(TableContinuationToken);
+            var query = new TableQuery()
+                            .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, NormalizeKeyValueForTableStorage(stateNamespace)));
+
+
+            var deleteTasks = new List<Task>();
+
+            do
+            {
+                var entitySegment = await _table.ExecuteQuerySegmentedAsync(query, queryContinuationToken).ConfigureAwait(false);
+
+                foreach(var entity in entitySegment.Results)
+                {
+                    deleteTasks.Add(_table.ExecuteAsync(TableOperation.Delete(entity)));
+                }
+
+                await Task.WhenAll(deleteTasks);
+
+                deleteTasks.Clear();
+
+                queryContinuationToken = entitySegment.ContinuationToken;
+            } while (queryContinuationToken != default(TableContinuationToken));
         }
 
-        public Task Delete(string stateNamespace, string key)
+        public Task Delete(string stateNamespace, string key) => _table.ExecuteAsync(TableOperation.Delete(new DynamicTableEntity(stateNamespace, key)));
+
+        public async Task Delete(string stateNamespace, IEnumerable<string> keys)
         {
-            throw new NotImplementedException();
+            var deleteTasks = new List<Task>();
+
+            foreach (var key in keys)
+            {
+                deleteTasks.Add(Delete(stateNamespace, key));
+            }
+
+            await Task.WhenAll(deleteTasks);
         }
 
-        public Task Delete(string stateNamespace, IEnumerable<string> keys)
-        {
-            throw new NotImplementedException();
-        }
+        private string NormalizeKeyValueForTableStorage(string value) => TableStorageKeyInvalidCharactersRegex.Replace(value, "`");
 
         private sealed class AzureTableStorageEntityStateStoreEntry : DeferredValueStateStoreEntry
         {
             private readonly DynamicTableEntity _tableEntity;
 
-            public AzureTableStorageEntityStateStoreEntry(DynamicTableEntity tableEntity) : base(tableEntity.PartitionKey, tableEntity.RowKey, tableEntity.ETag)
+            public AzureTableStorageEntityStateStoreEntry(DynamicTableEntity tableEntity) : base(tableEntity.Properties[BotRawStateNamespaceTableStoragePropertyName].StringValue, tableEntity.Properties[BotRawKeyTableStoragePropertyName].StringValue, tableEntity.ETag)
             {
                 _tableEntity = tableEntity ?? throw new ArgumentNullException(nameof(tableEntity));
             }
 
             internal DynamicTableEntity TableEntity => _tableEntity;
 
-            protected override T MaterializeValue<T>() => EntityPropertyConverter.ConvertBack<T>(_tableEntity.Properties, null);
+            protected override T MaterializeValue<T>()
+            {
+                var result = new T();
+
+                Microsoft.WindowsAzure.Storage.Table.TableEntity.ReadUserObject(result, _tableEntity.Properties, new OperationContext());
+
+                return result;
+            }
         }
     }
 }

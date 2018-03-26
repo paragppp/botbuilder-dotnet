@@ -7,6 +7,7 @@ using AlarmBot.Topics;
 using Microsoft.Bot;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Core.Extensions;
+using Microsoft.Bot.Builder.Core.State;
 
 namespace AlarmBot
 {
@@ -15,7 +16,7 @@ namespace AlarmBot
         public async Task OnReceiveActivity(ITurnContext context)
         {
             // Get the current ActiveTopic from my persisted conversation state
-            var conversation = ConversationState<ConversationData>.Get(context);
+            var conversation = await context.ConversationState().Get<ConversationData>();
 
             var handled = false;
             

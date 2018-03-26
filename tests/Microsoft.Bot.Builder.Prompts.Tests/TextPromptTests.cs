@@ -4,6 +4,7 @@
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Adapters;
 using Microsoft.Bot.Builder.Core.Extensions;
+using Microsoft.Bot.Builder.Core.State;
 using Microsoft.Bot.Schema;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -18,7 +19,7 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         public async Task SimpleRecognize()
         {
             TestAdapter adapter = new TestAdapter()
-                .Use(new ConversationState<StoreItem>(new MemoryStorage()));
+                .UseService((IStateStore)new MemoryStateStore());
 
             await new TestFlow(adapter, MyTestPrompt)
                 .Send("hello")
@@ -32,7 +33,7 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         public async Task MinLenghtViaCustomValidator_Fail()
         {
             TestAdapter adapter = new TestAdapter()
-                .Use(new ConversationState<StoreItem>(new MemoryStorage()));
+                .UseService((IStateStore)new MemoryStateStore());
 
             await new TestFlow(adapter, LengthCheckPromptTest)
                 .Send("hello")
@@ -45,7 +46,7 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         public async Task MinLenghtViaCustomValidator_Pass()
         {
             TestAdapter adapter = new TestAdapter()
-                .Use(new ConversationState<StoreItem>(new MemoryStorage()));
+                .UseService((IStateStore)new MemoryStateStore());
 
             await new TestFlow(adapter, LengthCheckPromptTest)
                 .Send("hello")
@@ -55,14 +56,24 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
                 .StartTest();
         }
 
+        public class MyTestPromptState
+        {
+            public string Topic { get; set; }
+        }
 
         public async Task MyTestPrompt(ITurnContext context)
         {
-            dynamic conversationState = ConversationState<StoreItem>.Get(context);
+            var conversationState = context.ConversationState();
+            var state = await conversationState.Get<MyTestPromptState>() ?? new MyTestPromptState();
+
             TextPrompt askForName = new TextPrompt();
-            if (conversationState["topic"] != "textPromptTest")
+            if (state.Topic != "textPromptTest")
             {
-                conversationState["topic"] = "textPromptTest";                
+                state.Topic = "textPromptTest";
+
+                conversationState.Set(state);
+                await conversationState.SaveChanges();
+
                 await askForName.Prompt(context, "Your Name:");
             }
             else
@@ -81,11 +92,16 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
 
         public async Task LengthCheckPromptTest(ITurnContext context)
         {
-            dynamic conversationState = ConversationState<StoreItem>.Get(context);
+            var conversationState = context.ConversationState();
+            var state = await conversationState.Get<MyTestPromptState>() ?? new MyTestPromptState();
             TextPrompt askForName = new TextPrompt(MinLengthValidator);
-            if (conversationState["topic"] != "textPromptTest")
+            if (state.Topic != "textPromptTest")
             {
-                conversationState["topic"] = "textPromptTest";
+                state.Topic = "textPromptTest";
+
+                conversationState.Set(state);
+                await conversationState.SaveChanges();
+
                 await askForName.Prompt(context, "Your Name:");
             }
             else

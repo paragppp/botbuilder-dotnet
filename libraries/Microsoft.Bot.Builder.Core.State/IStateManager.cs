@@ -5,7 +5,7 @@ namespace Microsoft.Bot.Builder.Core.State
 {
     public interface IStateManager
     {
-        Task<TState> Get<TState>(string key) where TState : class;
+        Task<TState> Get<TState>(string key) where TState : class, new();
 
         void Set<TState>(string key, TState state) where TState : class;
 
@@ -20,7 +20,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
     public static class StateManagerExtensions
     {
-        public static Task<TState> Get<TState>(this IStateManager stateManager) where TState : class =>
+        public static Task<TState> Get<TState>(this IStateManager stateManager) where TState : class, new() =>
             stateManager.Get<TState>(typeof(TState).Name);
 
         public static void Set<TState>(this IStateManager stateManager, TState state) where TState : class =>

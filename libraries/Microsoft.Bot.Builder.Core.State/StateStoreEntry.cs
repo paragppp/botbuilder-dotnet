@@ -23,7 +23,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
         public StateStoreEntry(string stateNamespace, string key, string eTag) : this(stateNamespace, key)
         {
-            _eTag = eTag ?? throw new ArgumentNullException(nameof(eTag));
+            _eTag = eTag;
         }
 
         public StateStoreEntry(string stateNamespace, string key, string eTag, object value) : this(stateNamespace, key, eTag)
@@ -53,7 +53,7 @@ namespace Microsoft.Bot.Builder.Core.State
             }
         }
 
-        public virtual T GetValue<T>() where T : class => (T)_value;
+        public virtual T GetValue<T>() where T : class, new() => (T)_value;
 
         public virtual void SetValue<T>(T value) where T : class => _value = value;
     }

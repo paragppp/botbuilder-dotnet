@@ -19,7 +19,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
         public IStateStore StateStore { get; }
 
-        public async Task<TState> Get<TState>(string key) where TState : class
+        public async Task<TState> Get<TState>(string key) where TState : class, new()
         {
             if (key == null)
             {

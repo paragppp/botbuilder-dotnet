@@ -9,6 +9,7 @@ using AlarmBot.Models;
 using AlarmBot.Responses;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Core.Extensions;
+using Microsoft.Bot.Builder.Core.State;
 using Microsoft.Bot.Schema;
 
 namespace AlarmBot.Topics
@@ -66,7 +67,7 @@ namespace AlarmBot.Topics
 
         public async Task<bool> FindAlarm(ITurnContext context)
         {
-            var userState = context.GetUserState<UserData>();
+            var userState = await context.UserState().Get<UserData>();
 
             if (userState.Alarms == null)
             {

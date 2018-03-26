@@ -9,6 +9,7 @@ using AlarmBot.Models;
 using AlarmBot.Responses;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Core.Extensions;
+using Microsoft.Bot.Builder.Core.State;
 using Microsoft.Bot.Schema;
 
 namespace AlarmBot.Topics
@@ -122,7 +123,7 @@ namespace AlarmBot.Topics
         private async Task<bool> ProcessTopicState(ITurnContext context)
         {
             string utterance = (context.Activity.Text ?? "").Trim();
-            var userState = context.GetUserState<UserData>();
+            var userState = await context.UserState().Get<UserData>();
 
             // we are using TopicState to remember what we last asked
             switch (this.TopicState)
