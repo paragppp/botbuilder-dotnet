@@ -19,7 +19,10 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         public async Task SimpleRecognize()
         {
             TestAdapter adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter, MyTestPrompt)
                 .Send("hello")
@@ -33,7 +36,10 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         public async Task MinLenghtViaCustomValidator_Fail()
         {
             TestAdapter adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter, LengthCheckPromptTest)
                 .Send("hello")
@@ -46,7 +52,10 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         public async Task MinLenghtViaCustomValidator_Pass()
         {
             TestAdapter adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter, LengthCheckPromptTest)
                 .Send("hello")

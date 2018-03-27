@@ -60,8 +60,6 @@ namespace Microsoft.Bot.Builder
 
         private readonly IBotAdapterServiceFactoryCollection _services = new BotAdapterServiceFactoryCollection();
 
-        public IBotAdapterServiceFactoryCollection Services => _services;
-
         /// <summary>
         /// When overridden in a derived class, sends activities to the conversation.
         /// </summary>       

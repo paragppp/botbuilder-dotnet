@@ -43,7 +43,7 @@ namespace Microsoft.Bot.Builder
             _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
             _activity = activity ?? throw new ArgumentNullException(nameof(activity));
 
-            _services = new TurnContextServiceCollection(adapter.Services);
+            _services = new TurnContextServiceCollection(adapter.ServiceProvider);
         }
 
         /// <summary>

@@ -47,7 +47,10 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         public async Task State_UnsetStateShouldReturnNull()
         {
             var adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter,
                     async (context) =>
@@ -65,7 +68,10 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         public async Task State_UnsavedStateShouldNotPersist()
         {
             var adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter,
                     async (context) =>
@@ -106,7 +112,10 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         public async Task State_SavedStateIsRecalledOnNextTurn()
         {
             var adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter,
                     async (context) =>
@@ -152,7 +161,10 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             string testStateValue = Guid.NewGuid().ToString();
 
             TestAdapter adapter = new TestAdapter()
-                .UseService((IStateStore)new MemoryStateStore());
+                .UseServices(serviceCollection =>
+                {
+                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
+                });
 
             await new TestFlow(adapter, async (context) =>
                     {
