@@ -24,7 +24,7 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             var stateStoreEntryKey = Guid.NewGuid().ToString("D");
             var newStateStoreEntry = stateStore.CreateNewStateEntry(TestStateNamespace, stateStoreEntryKey);
 
-            var newState = new StateTestsPocoState() { Id = Guid.NewGuid().ToString("D") };
+            var newState = new StateTestsPocoState() { Id = Guid.NewGuid().ToString("D"), Nested = new StateTestsNestedPocoState { NestedId = Guid.NewGuid().ToString("D") } };
             newStateStoreEntry.SetValue(newState);
 
             await stateStore.Save(newStateStoreEntry);
@@ -38,6 +38,10 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             Assert.IsNotNull(loadedState);
 
             Assert.AreEqual(newState.Id, loadedState.Id);
+
+            Assert.IsNotNull(loadedState.Nested);
+
+            Assert.AreEqual(newState.Nested.NestedId, loadedState.Nested.NestedId);
         }
 
         protected async Task _handleCrazyKeys(IStateStore stateStore)
@@ -201,6 +205,13 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             public string Id { get; set; }
 
             public int Count { get; set; }
+
+            public StateTestsNestedPocoState Nested { get; set; }
+        }
+
+        public class StateTestsNestedPocoState
+        {
+            public string NestedId { get; set; }
         }
     }   
 }

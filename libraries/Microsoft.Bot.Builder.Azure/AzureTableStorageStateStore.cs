@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -20,8 +21,9 @@ namespace Microsoft.Bot.Builder.Azure
     /// </summary>
     public class AzureTableStorageStateStore : IStateStore
     {
-        private const string BotRawStateNamespaceTableStoragePropertyName = "__Bot_RawStateNamespace";
-        private const string BotRawKeyTableStoragePropertyName = "__Bot_RawKey";
+        private const string BotPropertyPrefix = "__Bot_";
+        private const string BotRawStateNamespaceTableStoragePropertyName = BotPropertyPrefix + "RawStateNamespace";
+        private const string BotRawKeyTableStoragePropertyName = BotPropertyPrefix + "RawKey";
 
         private static readonly HashSet<string> CheckedTables = new HashSet<string>();
         private static readonly Regex TableStorageKeyInvalidCharactersRegex = new Regex("[!@#$%^&*\\(\\)~/\\\\><,.?';\"\u0000-\u001F\u007F-\u009F]", RegexOptions.Singleline | RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -127,7 +129,7 @@ namespace Microsoft.Bot.Builder.Azure
                     }
                     else
                     {
-                        var properties = TableEntity.WriteUserObject(value, new OperationContext());
+                        var properties = TableEntity.Flatten(value, new OperationContext());
 
                         properties.Add(BotRawStateNamespaceTableStoragePropertyName, tableEntity.Properties[BotRawStateNamespaceTableStoragePropertyName]);
                         properties.Add(BotRawKeyTableStoragePropertyName, tableEntity.Properties[BotRawKeyTableStoragePropertyName]);
@@ -207,13 +209,57 @@ namespace Microsoft.Bot.Builder.Azure
 
             internal DynamicTableEntity TableEntity => _tableEntity;
 
-            protected override T MaterializeValue<T>()
+            protected override T MaterializeValue<T>() => EntityPropertyConverter.ConvertBack<T>(new BotPropertyFilteringPropertiesDictionary(_tableEntity.Properties), new OperationContext());
+
+            private sealed class BotPropertyFilteringPropertiesDictionary : IDictionary<string, EntityProperty>
             {
-                var result = new T();
+                private readonly IDictionary<string, EntityProperty> _innerProperties;
 
-                Microsoft.WindowsAzure.Storage.Table.TableEntity.ReadUserObject(result, _tableEntity.Properties, new OperationContext());
+                public BotPropertyFilteringPropertiesDictionary(IDictionary<string, EntityProperty> innerProperties)
+                {
+                    _innerProperties = innerProperties;
+                }
 
-                return result;
+                public EntityProperty this[string key] { get => _innerProperties[key]; set => throw new NotImplementedException(); }
+
+                public ICollection<string> Keys => _innerProperties.Keys.Where(k => !k.StartsWith(BotPropertyPrefix)).ToList();
+
+                public ICollection<EntityProperty> Values => _innerProperties.Where(kvp => !kvp.Key.StartsWith(BotPropertyPrefix)).Select(kvp => kvp.Value).ToList();
+
+                public int Count => Keys.Count;
+
+                public bool IsReadOnly => true;
+
+                public void Add(string key, EntityProperty value) => throw new NotSupportedException();
+
+                public void Add(KeyValuePair<string, EntityProperty> item) => throw new NotSupportedException();
+
+                public void Clear() => throw new NotSupportedException();
+
+                public bool Contains(KeyValuePair<string, EntityProperty> item) => !item.Key.StartsWith(BotPropertyPrefix) && _innerProperties.Contains(item);
+
+                public bool ContainsKey(string key) => !key.StartsWith(BotPropertyPrefix) && _innerProperties.ContainsKey(key);
+
+                public void CopyTo(KeyValuePair<string, EntityProperty>[] array, int arrayIndex) => throw new NotImplementedException();
+
+                public IEnumerator<KeyValuePair<string, EntityProperty>> GetEnumerator()
+                {
+                    foreach(var kvp in _innerProperties)
+                    {
+                        if(!kvp.Key.StartsWith(BotPropertyPrefix))
+                        {
+                            yield return kvp;
+                        }
+                    }
+                }
+
+                public bool Remove(string key)  => throw new NotSupportedException();
+
+                public bool Remove(KeyValuePair<string, EntityProperty> item) => throw new NotSupportedException();
+
+                public bool TryGetValue(string key, out EntityProperty value) => _innerProperties.TryGetValue(key, out value) && !key.StartsWith(BotPropertyPrefix);
+
+                IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
             }
         }
     }
