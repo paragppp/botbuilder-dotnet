@@ -6,6 +6,7 @@ using AlarmBot.Models;
 using AlarmBot.Topics;
 using Microsoft.Bot;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Core.State;
 
 namespace AlarmBot
 {
@@ -18,25 +19,36 @@ namespace AlarmBot
 
             var handled = false;
 
+            var conversationStateManager = context.ConversationState();
+            var conversationData = await conversationStateManager.Get<AlarmTopicState>();
+
             // if we don't have an active topic yet
-            if (context.ConversationState.ActiveTopic == null)
+            if (conversationData.ActiveTopic == null)
             {
                 // use the default topic
-                context.ConversationState.ActiveTopic = new DefaultTopic();
-                handled = await context.ConversationState.ActiveTopic.StartTopic(context);
+                conversationData.ActiveTopic = new DefaultTopic();
+
+                conversationStateManager.Set(conversationData);
+                await conversationStateManager.SaveChanges();
+
+                handled = await conversationData.ActiveTopic.StartTopic(context);
             }
             else
             {
                 // we do have an active topic, so call it 
-                handled = await context.ConversationState.ActiveTopic.ContinueTopic(context);
+                handled = await conversationData.ActiveTopic.ContinueTopic(context);
             }
 
             // if activeTopic's result is false and the activeTopic is NOT already the default topic
-            if (handled == false && !(context.ConversationState.ActiveTopic is DefaultTopic))
+            if (handled == false && !(conversationData.ActiveTopic is DefaultTopic))
             {
                 // Use DefaultTopic as the active topic
-                context.ConversationState.ActiveTopic = new DefaultTopic();
-                await context.ConversationState.ActiveTopic.ResumeTopic(context);
+                conversationData.ActiveTopic = new DefaultTopic();
+
+                conversationStateManager.Set(conversationData);
+                await conversationStateManager.SaveChanges();
+
+                await conversationData.ActiveTopic.ResumeTopic(context);
             }
         }
     }
