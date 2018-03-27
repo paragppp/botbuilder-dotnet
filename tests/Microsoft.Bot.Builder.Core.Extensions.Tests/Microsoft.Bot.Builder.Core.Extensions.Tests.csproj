@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <Compile Remove="FileStorageTests.cs" />
-    <Compile Remove="Intent_RegExRecognizerTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
