@@ -30,6 +30,9 @@ namespace Microsoft.Bot.Builder.Integration.AspNet.Core
             var options = applicationBuilder.ApplicationServices.GetRequiredService<IOptions<BotFrameworkOptions>>().Value;
 
             var botFrameworkAdapter = new BotFrameworkAdapter(options.CredentialProvider, options.ConnectorClientRetryPolicy);
+            {
+                ServiceProvider = applicationBuilder.ApplicationServices
+            };
 
             foreach (var middleware in options.Middleware)
             {
