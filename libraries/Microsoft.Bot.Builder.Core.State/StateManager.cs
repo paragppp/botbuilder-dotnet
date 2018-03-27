@@ -67,7 +67,7 @@ namespace Microsoft.Bot.Builder.Core.State
             stateEntry.StateStoreEntry.SetValue(state);
         }
 
-        public async Task Load()
+        public async Task LoadAll()
         {
             var allStateStoreEntries = await StateStore.Load(Namespace);
 

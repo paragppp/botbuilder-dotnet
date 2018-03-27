@@ -1,34 +1,50 @@
-﻿using System.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Microsoft.Bot.Builder.Core.State
 {
-    public sealed class StateManagerAutoLoaderMiddleware : IMiddleware
+    public sealed class StateManagerMiddleware : IMiddleware
     {
-        public StateManagerAutoLoaderMiddleware(bool enableAutoLoad, bool enableAutoSave)
+        public StateManagerMiddleware()
+        {
+        }
+
+        public StateManagerMiddleware(bool enableAutoLoad, bool enableAutoSave)
         {
             EnableAutoLoad = enableAutoLoad;
             EnableAutoSave = enableAutoSave;
-        }
+        }        
 
-        public bool EnableAutoLoad { get; }
-        public bool EnableAutoSave { get; }
+        public bool EnableAutoLoad { get; set; }
+        public bool EnableAutoSave { get; set; }
 
         public async Task OnProcessRequest(ITurnContext context, MiddlewareSet.NextDelegate next)
         {
-            var stateManagerServices = context.Services.GetServices<IStateManager>().ToList();
-
-            if(EnableAutoLoad && stateManagerServices.Count > 0)
+            if(EnableAutoLoad)
             {
-                await Task.WhenAll(stateManagerServices.Select(sms => sms.Value.Load()));
+                await DoForAllStateManagers(context, sm => sm.LoadAll());
             }
 
             await next();
 
-            if(EnableAutoSave && stateManagerServices.Count > 0)
+            if(EnableAutoSave)
             {
-                await Task.WhenAll(stateManagerServices.Select(sms => sms.Value.SaveChanges()));
+                await DoForAllStateManagers(context, sm => sm.SaveChanges());
             }
+        }
+
+        public Task DoForAllStateManagers(ITurnContext context, Func<IStateManager, Task> action)
+        {
+            var tasks = new List<Task>();
+
+            foreach (var stateManagerServiceEntry in context.Services.GetServices<IStateManager>())
+            {
+                tasks.Add(action(stateManagerServiceEntry.Value));
+            }
+
+            return Task.WhenAll(tasks);
         }
     }
 }
