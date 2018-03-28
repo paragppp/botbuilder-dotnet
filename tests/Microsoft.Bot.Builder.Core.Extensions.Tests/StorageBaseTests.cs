@@ -101,7 +101,7 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
 
             Assert.IsNotNull(reloadedState);
 
-            Assert.AreEqual(reloadedState.Count, 2);
+            Assert.AreEqual(2, reloadedState.Count);
 
             // update latest state entry should succeed because we have latest ETag
             reloadedState.Count++;
@@ -116,14 +116,14 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
 
                 Assert.Fail("Should have thrown exception on write because of stale ETag");
             }
-            catch
+            catch(StateOptimisticConcurrencyViolationException)
             {
             }
 
             var rereloadedStateStoreEntry = await stateStore.Load(TestStateNamespace, stateStoreEntryKey);
             var rereloadedState = rereloadedStateStoreEntry.GetValue<StateTestsPocoState>();
 
-            Assert.AreEqual(rereloadedState.Count, 3);
+            Assert.AreEqual(3, rereloadedState.Count);
 
             //rereloadedStateStoreEntry.ETag = "*";
 

@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Core.State;
 using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Shared.Protocol;
 using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 
@@ -107,51 +108,57 @@ namespace Microsoft.Bot.Builder.Azure
 
         public async Task Save(IEnumerable<IStateStoreEntry> stateStoreEntries)
         {
-            foreach (var stateNamespaceBatch in stateStoreEntries.GroupBy(stateStoreEntry => stateStoreEntry.Namespace))
+            try
             {
-                var partitionBatchOperation = new TableBatchOperation();
-
-                foreach (var stateStoreEntry in stateNamespaceBatch)
+                foreach (var stateNamespaceBatch in stateStoreEntries.GroupBy(stateStoreEntry => stateStoreEntry.Namespace))
                 {
-                    if (!(stateStoreEntry is AzureTableStorageEntityStateStoreEntry azureTableStorageStateStoreEntry))
+                    var partitionBatchOperation = new TableBatchOperation();
+
+                    foreach (var stateStoreEntry in stateNamespaceBatch)
                     {
-                        throw new InvalidOperationException($"{nameof(AzureTableStorageStateStore)} only supports instances of type {nameof(AzureTableStorageEntityStateStoreEntry)}.");
+                        if (!(stateStoreEntry is AzureTableStorageEntityStateStoreEntry azureTableStorageStateStoreEntry))
+                        {
+                            throw new InvalidOperationException($"{nameof(AzureTableStorageStateStore)} only supports instances of type {nameof(AzureTableStorageEntityStateStoreEntry)}.");
+                        }
+
+                        var value = azureTableStorageStateStoreEntry.RawValue;
+                        var tableEntity = azureTableStorageStateStoreEntry.TableEntity;
+
+                        var operation = default(TableOperation);
+
+                        if (value != null)
+                        {
+                            var properties = TableEntity.Flatten(value, new OperationContext());
+
+                            properties.Add(BotRawStateNamespaceTableStoragePropertyName, tableEntity.Properties[BotRawStateNamespaceTableStoragePropertyName]);
+                            properties.Add(BotRawKeyTableStoragePropertyName, tableEntity.Properties[BotRawKeyTableStoragePropertyName]);
+
+                            tableEntity.Properties = properties;
+                        }
+
+                        operation = tableEntity.ETag == null ? TableOperation.Insert(tableEntity) : TableOperation.Replace(tableEntity);
+
+                        partitionBatchOperation.Add(operation);
+
+                        if (partitionBatchOperation.Count == 100)
+                        {
+                            await _table.ExecuteBatchAsync(partitionBatchOperation).ConfigureAwait(false);
+
+                            partitionBatchOperation.Clear();
+                        }
                     }
 
-                    var value = azureTableStorageStateStoreEntry.RawValue;
-                    var tableEntity = azureTableStorageStateStoreEntry.TableEntity;
-
-                    var operation = default(TableOperation);
-
-                    if (value == null)
-                    {
-                        operation = TableOperation.InsertOrReplace(tableEntity);
-                    }
-                    else
-                    {
-                        var properties = TableEntity.Flatten(value, new OperationContext());
-
-                        properties.Add(BotRawStateNamespaceTableStoragePropertyName, tableEntity.Properties[BotRawStateNamespaceTableStoragePropertyName]);
-                        properties.Add(BotRawKeyTableStoragePropertyName, tableEntity.Properties[BotRawKeyTableStoragePropertyName]);
-
-                        tableEntity.Properties = properties;
-
-                        operation = TableOperation.InsertOrReplace(tableEntity);
-                    }
-
-                    partitionBatchOperation.Add(operation);
-
-                    if (partitionBatchOperation.Count == 100)
+                    if (partitionBatchOperation.Count > 0)
                     {
                         await _table.ExecuteBatchAsync(partitionBatchOperation).ConfigureAwait(false);
-
-                        partitionBatchOperation.Clear();
                     }
                 }
-
-                if (partitionBatchOperation.Count > 0)
+            }
+            catch(StorageException storageException) when (storageException.RequestInformation.HttpStatusCode == 412)
+            {
+                if(storageException.RequestInformation.ExtendedErrorInformation?.ErrorCode == "UpdateConditionNotSatisfied")
                 {
-                    await _table.ExecuteBatchAsync(partitionBatchOperation).ConfigureAwait(false);
+                    throw new StateOptimisticConcurrencyViolationException("One or more entities could not be saved because they are outdated. Please check the inner exception for more details.", storageException);
                 }
             }
         }
@@ -182,7 +189,7 @@ namespace Microsoft.Bot.Builder.Azure
             } while (queryContinuationToken != default(TableContinuationToken));
         }
 
-        public Task Delete(string stateNamespace, string key) => _table.ExecuteAsync(TableOperation.Delete(new DynamicTableEntity(stateNamespace, key)));
+        public Task Delete(string stateNamespace, string key) => _table.ExecuteAsync(TableOperation.Delete(new DynamicTableEntity(NormalizeKeyValueForTableStorage(stateNamespace), NormalizeKeyValueForTableStorage(key)) { ETag = "*" }));
 
         public async Task Delete(string stateNamespace, IEnumerable<string> keys)
         {
