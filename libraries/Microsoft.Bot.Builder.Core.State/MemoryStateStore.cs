@@ -116,7 +116,7 @@ namespace Microsoft.Bot.Builder.Core.State
                 {
                     if (!(entry is StateStoreEntry stateStoreEntry))
                     {
-                        throw new ArgumentException($"Specified value is not of type {nameof(StateStoreEntry)}.");
+                        throw new ArgumentException($"Only instances of {nameof(StateStoreEntry)} are supported by {nameof(MemoryStateStore)}.");
                     }
 
                     if (entriesForPartition.TryGetValue(stateStoreEntry.Key, out var existingEntry))
@@ -124,8 +124,7 @@ namespace Microsoft.Bot.Builder.Core.State
                         ThrowIfStateStoreEntryETagMismatch(stateStoreEntry, existingEntry);
                     }
 
-                    stateStoreEntry.ETag = Guid.NewGuid().ToString("N");
-                    entriesForPartition[stateStoreEntry.Key] = stateStoreEntry;
+                    entriesForPartition[stateStoreEntry.Key] = new StateStoreEntry(stateStoreEntry.Namespace, stateStoreEntry.Key, Guid.NewGuid().ToString("N"), stateStoreEntry.RawValue);
                 }
             }
 

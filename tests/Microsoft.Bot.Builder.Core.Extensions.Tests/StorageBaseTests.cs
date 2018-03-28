@@ -112,8 +112,6 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             // update originally loaded state entry should fail because we have a stale ETag
             try
             {
-                loadedState.Count++;
-
                 await stateStore.Save(loadedStateStoreEntry);
 
                 Assert.Fail("Should have thrown exception on write because of stale ETag");
@@ -126,8 +124,6 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             var rereloadedState = rereloadedStateStoreEntry.GetValue<StateTestsPocoState>();
 
             Assert.AreEqual(rereloadedState.Count, 3);
-
-            rereloadedState.Count = 100;
 
             //rereloadedStateStoreEntry.ETag = "*";
 
