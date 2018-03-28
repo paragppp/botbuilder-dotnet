@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ namespace Microsoft.Bot.Builder.Core.State
 {
     public class MemoryStateStore : IStateStore
     {
-        private Dictionary<string, Dictionary<string, IStateStoreEntry>> _store = new Dictionary<string, Dictionary<string, IStateStoreEntry>>();
+        private ConcurrentDictionary<string, ConcurrentDictionary<string, IStateStoreEntry>> _store = new ConcurrentDictionary<string, ConcurrentDictionary<string, IStateStoreEntry>>();
 
         public MemoryStateStore()
         {
@@ -22,7 +23,7 @@ namespace Microsoft.Bot.Builder.Core.State
                 throw new ArgumentNullException(nameof(partitionKey));
             }
 
-            if(_store.TryGetValue(partitionKey, out var entriesForPartion))
+            if (_store.TryGetValue(partitionKey, out var entriesForPartion))
             {
                 return Task.FromResult(entriesForPartion.Select(kvp => kvp.Value));
             }
@@ -66,7 +67,7 @@ namespace Microsoft.Bot.Builder.Core.State
 
                 foreach (var key in keys)
                 {
-                    if(entriesForPartion.TryGetValue(key, out var entry))
+                    if (entriesForPartion.TryGetValue(key, out var entry))
                     {
                         results.Add(entry);
                     }
@@ -85,17 +86,21 @@ namespace Microsoft.Bot.Builder.Core.State
                 throw new ArgumentNullException(nameof(partitionKey));
             }
 
-            if(!_store.TryGetValue(partitionKey, out var entriesForPartition))
-            {
-                entriesForPartition = new Dictionary<string, IStateStoreEntry>();
-
-                _store.Add(partitionKey, entriesForPartition);
-            }
+            var entriesForPartition = _store.GetOrAdd(partitionKey, pk => new ConcurrentDictionary<string, IStateStoreEntry>());
 
             foreach (var entry in values)
             {
-                entriesForPartition.Add(entry.Key, new StateStoreEntry(partitionKey, entry.Key, entry.Value));
+                var newStateStoreEntry = new StateStoreEntry(partitionKey, entry.Key, entry.Value);
 
+                entriesForPartition.AddOrUpdate(
+                    entry.Key,
+                    newStateStoreEntry,
+                    (key, existingStateStoreEntry) =>
+                    {
+                        ThrowIfStateStoreEntryETagMismatch(newStateStoreEntry, existingStateStoreEntry);
+
+                        return newStateStoreEntry;
+                    });
             }
 
             return Task.CompletedTask;
@@ -105,33 +110,22 @@ namespace Microsoft.Bot.Builder.Core.State
         {
             foreach (var entityGroup in entries.GroupBy(e => e.Namespace))
             {
-                if (!_store.TryGetValue(entityGroup.Key, out var entriesForPartition))
-                {
-                    entriesForPartition = new Dictionary<string, IStateStoreEntry>();
-
-                    _store.Add(entityGroup.Key, entriesForPartition);
-                }
+                var entriesForPartition = _store.GetOrAdd(entityGroup.Key, pk => new ConcurrentDictionary<string, IStateStoreEntry>());
 
                 foreach (var entry in entries)
                 {
-                    if(!(entry is StateStoreEntry stateStoreEntry))
+                    if (!(entry is StateStoreEntry stateStoreEntry))
                     {
                         throw new ArgumentException($"Specified value is not of type {nameof(StateStoreEntry)}.");
                     }
 
                     if (entriesForPartition.TryGetValue(stateStoreEntry.Key, out var existingEntry))
                     {
-                        if(!Object.ReferenceEquals(entry, existingEntry))
-                        {
-                            if (stateStoreEntry.ETag != existingEntry.ETag)
-                            {
-                                throw new StateOptimisticConcurrencyViolation($"An optimistic concurrency violation occurred when trying to save state for: PartitionKey={stateStoreEntry.Namespace};Key={stateStoreEntry.Key}. The original ETag value was {stateStoreEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
-                            }
-                        }
+                        ThrowIfStateStoreEntryETagMismatch(stateStoreEntry, existingEntry);
                     }
 
                     stateStoreEntry.ETag = Guid.NewGuid().ToString("N");
-                    entriesForPartition[stateStoreEntry.Key] = stateStoreEntry;                    
+                    entriesForPartition[stateStoreEntry.Key] = stateStoreEntry;
                 }
             }
 
@@ -140,16 +134,16 @@ namespace Microsoft.Bot.Builder.Core.State
 
         public Task Delete(string partitionKey)
         {
-            _store.Remove(partitionKey);
+            _store.TryRemove(partitionKey, out _);
 
             return Task.CompletedTask;
         }
 
         public Task Delete(string partitionKey, string key)
         {
-            if(_store.TryGetValue(partitionKey, out var entriesForPartition))
+            if (_store.TryGetValue(partitionKey, out var entriesForPartition))
             {
-                entriesForPartition.Remove(key);
+                entriesForPartition.TryRemove(key, out _);
             }
 
             return Task.CompletedTask;
@@ -161,11 +155,23 @@ namespace Microsoft.Bot.Builder.Core.State
             {
                 foreach (string key in keys)
                 {
-                    entriesForPartition.Remove(key);
+                    entriesForPartition.TryRemove(key, out _);
                 }
             }
 
             return Task.CompletedTask;
         }
+
+        private static void ThrowIfStateStoreEntryETagMismatch(IStateStoreEntry newEntry, IStateStoreEntry existingEntry)
+        {
+            if (!Object.ReferenceEquals(newEntry, existingEntry))
+            {
+                if (newEntry.ETag != existingEntry.ETag)
+                {
+                    throw new StateOptimisticConcurrencyViolation($"An optimistic concurrency violation occurred when trying to save new state for: PartitionKey={newEntry.Namespace};Key={newEntry.Key}. The original ETag value was {newEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
+                }
+            }
+        }
+
     }
 }
