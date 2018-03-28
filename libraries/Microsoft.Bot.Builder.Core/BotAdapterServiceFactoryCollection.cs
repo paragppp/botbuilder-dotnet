@@ -30,7 +30,7 @@ namespace Microsoft.Bot.Builder
                 throw new ArgumentNullException(nameof(serviceType));
             }
 
-            if (serviceType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            if (serviceType.IsGenericType && serviceType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             {
                 return GetMultipleServices();
             }
