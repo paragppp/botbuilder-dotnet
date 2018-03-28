@@ -28,7 +28,7 @@ namespace Microsoft.Bot.Builder
         private readonly IList<UpdateActivityHandler> _onUpdateActivity = new List<UpdateActivityHandler>();
         private readonly IList<DeleteActivityHandler> _onDeleteActivity = new List<DeleteActivityHandler>();
 
-        private readonly IServiceScope _turnServiceScope;
+        private readonly IServiceProvider _turnServiceProvider;
         private readonly TurnContextServiceCollection _turnServices;
 
         /// <summary>
@@ -40,13 +40,13 @@ namespace Microsoft.Bot.Builder
         /// <exception cref="ArgumentNullException"><paramref name="activity"/> or
         /// <paramref name="adapter"/> is <c>null</c>.</exception>
         /// <remarks>For use by bot adapter implementations only.</remarks>
-        public TurnContext(BotAdapter adapter, Activity activity)
+        public TurnContext(BotAdapter adapter, Activity activity, IServiceProvider serviceProvider)
         {
             _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
             _activity = activity ?? throw new ArgumentNullException(nameof(activity));
+            _turnServiceProvider = serviceProvider ?? adapter.ServiceProvider;
 
-            _turnServiceScope = adapter.ServiceProvider.CreateScope();
-            _turnServices = new TurnContextServiceCollection(_turnServiceScope);
+            _turnServices = new TurnContextServiceCollection(_turnServiceProvider);
         }
 
         /// <summary>
@@ -467,7 +467,6 @@ namespace Microsoft.Bot.Builder
 
         public void Dispose()
         {
-            _turnServiceScope.Dispose();
             _turnServices.Dispose();
         }
     }

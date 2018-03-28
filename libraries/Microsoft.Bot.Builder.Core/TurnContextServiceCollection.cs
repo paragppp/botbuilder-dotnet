@@ -37,11 +37,11 @@ namespace Microsoft.Bot.Builder
     public sealed class TurnContextServiceCollection : ITurnContextServiceCollection, IDisposable
     {
         private readonly Dictionary<string, object> _services = new Dictionary<string, object>();
-        private readonly IServiceScope _serviceScope;
+        private readonly IServiceProvider _serviceProvider;
 
-        public TurnContextServiceCollection(IServiceScope serviceScope)
+        public TurnContextServiceCollection(IServiceProvider serviceProvider)
         {
-            _serviceScope = serviceScope ?? throw new ArgumentNullException(nameof(serviceScope));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         public TService Get<TService>(string key) where TService : class
@@ -50,7 +50,7 @@ namespace Microsoft.Bot.Builder
 
             if(!_services.TryGetValue(key, out var service))
             {
-                service = _serviceScope.ServiceProvider.GetService<TService>();
+                service = _serviceProvider.GetService<TService>();
 
                 if (service != default(TService))
                 {
