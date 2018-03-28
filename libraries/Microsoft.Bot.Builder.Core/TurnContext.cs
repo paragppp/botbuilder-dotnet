@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Schema;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.Bot.Builder
 {
@@ -17,7 +18,7 @@ namespace Microsoft.Bot.Builder
     /// length of the turn.</remarks>
     /// <seealso cref="IBot"/>
     /// <seealso cref="IMiddleware"/>
-    public class TurnContext : ITurnContext
+    public class TurnContext : ITurnContext, IDisposable
     {
         private readonly BotAdapter _adapter;
         private readonly Activity _activity;
@@ -27,7 +28,8 @@ namespace Microsoft.Bot.Builder
         private readonly IList<UpdateActivityHandler> _onUpdateActivity = new List<UpdateActivityHandler>();
         private readonly IList<DeleteActivityHandler> _onDeleteActivity = new List<DeleteActivityHandler>();
 
-        private readonly TurnContextServiceCollection _services;
+        private readonly IServiceScope _turnServiceScope;
+        private readonly TurnContextServiceCollection _turnServices;
 
         /// <summary>
         /// Creates a context object.
@@ -43,7 +45,8 @@ namespace Microsoft.Bot.Builder
             _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
             _activity = activity ?? throw new ArgumentNullException(nameof(activity));
 
-            _services = new TurnContextServiceCollection(adapter.ServiceProvider);
+            _turnServiceScope = adapter.ServiceProvider.CreateScope();
+            _turnServices = new TurnContextServiceCollection(_turnServiceScope);
         }
 
         /// <summary>
@@ -460,6 +463,12 @@ namespace Microsoft.Bot.Builder
                     activity.ReplyToId = reference.ActivityId;
             }
             return activity;
+        }
+
+        public void Dispose()
+        {
+            _turnServiceScope.Dispose();
+            _turnServices.Dispose();
         }
     }
 }

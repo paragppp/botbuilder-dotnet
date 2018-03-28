@@ -25,9 +25,37 @@ namespace Microsoft.Bot.Builder
 
         public object GetService(Type serviceType)
         {
-            _serviceFactories.TryGetValue(serviceType, out var serviceFactory);
+            if (serviceType == null)
+            {
+                throw new ArgumentNullException(nameof(serviceType));
+            }
 
-            return serviceFactory != null ? serviceFactory() : null;
+            if (serviceType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return GetMultipleServices();
+            }
+            else
+            {
+                _serviceFactories.TryGetValue(serviceType, out var serviceFactory);
+
+                return serviceFactory != null ? serviceFactory() : null;
+            }
+
+            IEnumerable<object> GetMultipleServices()
+            {
+                foreach (var serviceFactory in _serviceFactories)
+                {
+                    if (serviceFactory.GetType().GetGenericArguments()[0] == serviceType)
+                    {
+                        var service = serviceFactory.Value();
+
+                        if (service != null)
+                        {
+                            yield return service;
+                        }
+                    }
+                }
+            }
         }
     }
 

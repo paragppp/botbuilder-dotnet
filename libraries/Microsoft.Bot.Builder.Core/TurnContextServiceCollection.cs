@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -32,14 +34,14 @@ namespace Microsoft.Bot.Builder
         TService Get<TService>(string key) where TService : class;
     }
 
-    public sealed class TurnContextServiceCollection : ITurnContextServiceCollection
+    public sealed class TurnContextServiceCollection : ITurnContextServiceCollection, IDisposable
     {
         private readonly Dictionary<string, object> _services = new Dictionary<string, object>();
-        private readonly IServiceProvider _botAdapterServiceProvider;
+        private readonly IServiceScope _serviceScope;
 
-        public TurnContextServiceCollection(IServiceProvider botAdapterServiceProvider)
+        public TurnContextServiceCollection(IServiceScope serviceScope)
         {
-            _botAdapterServiceProvider = botAdapterServiceProvider ?? throw new ArgumentNullException(nameof(botAdapterServiceProvider));
+            _serviceScope = serviceScope ?? throw new ArgumentNullException(nameof(serviceScope));
         }
 
         public TService Get<TService>(string key) where TService : class
@@ -48,7 +50,7 @@ namespace Microsoft.Bot.Builder
 
             if(!_services.TryGetValue(key, out var service))
             {
-                service = _botAdapterServiceProvider.GetService(typeof(TService)) as TService;
+                service = _serviceScope.ServiceProvider.GetService<TService>();
 
                 if (service != default(TService))
                 {
@@ -77,6 +79,17 @@ namespace Microsoft.Bot.Builder
         public IEnumerator<KeyValuePair<string, object>> GetEnumerator() => _services.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => _services.GetEnumerator();
+
+        public void Dispose()
+        {
+            foreach(var entry in _services)
+            {
+                if(entry.Value is IDisposable disposableService)
+                {
+                    disposableService.Dispose();
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -116,7 +129,6 @@ namespace Microsoft.Bot.Builder
         public static TService Get<TService>(this ITurnContextServiceCollection serviceCollection) where TService : class =>
             serviceCollection.Get<TService>(typeof(TService).FullName);
 
-
         /// <summary>
         /// Returns all entries in the collection of a specified type.
         /// </summary>
@@ -125,9 +137,9 @@ namespace Microsoft.Bot.Builder
         /// <returns>All instances of the requested service currently stored in the collection.</returns>
         public static IEnumerable<KeyValuePair<string, TService>> GetServices<TService>(this ITurnContextServiceCollection serviceCollection) where TService : class
         {
-            foreach(var entry in serviceCollection)
+            foreach (var entry in serviceCollection)
             {
-                if(entry.Value is TService service)
+                if (entry.Value is TService service)
                 {
                     yield return new KeyValuePair<string, TService>(entry.Key, service);
                 }
