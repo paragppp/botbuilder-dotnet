@@ -116,7 +116,7 @@ namespace Microsoft.Bot.Builder.Core.State
                 {
                     if (!(entry is StateStoreEntry stateStoreEntry))
                     {
-                        throw new ArgumentException($"Only instances of {nameof(StateStoreEntry)} are supported by {nameof(MemoryStateStore)}.");
+                        throw new InvalidOperationException($"Only instances of {nameof(StateStoreEntry)} are supported by {nameof(MemoryStateStore)}.");
                     }
 
                     if (entriesForPartition.TryGetValue(stateStoreEntry.Key, out var existingEntry))
