@@ -65,7 +65,7 @@ namespace AlarmBot.Topics
         public async Task<bool> FindAlarm(AlarmBotContext context)
         {
             var userStateManager = context.UserState();
-            var userData = await userStateManager.Get<AlarmUserState>() ?? new AlarmUserState();
+            var userData = await userStateManager.GetOrCreate<AlarmUserState>();
 
             if (userData.Alarms == null)
             {
@@ -92,7 +92,6 @@ namespace AlarmBot.Topics
                         userData.Alarms.Remove(alarm);
 
                         userStateManager.Set(userData);
-                        await userStateManager.SaveChanges();
 
                         await DeleteAlarmResponses.ReplyWithDeletedAlarm(context, alarm);
                         return false; // cancel topic
@@ -115,8 +114,7 @@ namespace AlarmBot.Topics
 
                         userData.Alarms.Remove(alarm);
                         userStateManager.Set(userData);
-                        await userStateManager.SaveChanges();
-
+                        
                         await DeleteAlarmResponses.ReplyWithDeletedAlarm(context, alarm);
                         return false; // cancel topic
                     }

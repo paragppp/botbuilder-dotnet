@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder.BotFramework;
 using Microsoft.Bot.Builder.Core.Extensions;
+using Microsoft.Bot.Builder.Core.State;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +47,9 @@ namespace AlarmBot
 
                 // Add middleware to send periodic typing activities until the bot responds. The initial
                 // delay before sending a typing activity and the frequency of additional activities can also be specified
+                middleware.Add(new StateManagerMiddleware()
+                                    .AutoLoadAll()
+                                    .AutoSaveAll());
                 middleware.Add(new ShowTypingMiddleware());
                 middleware.Add(new RegExpRecognizerMiddleware()
                         .AddIntent("showAlarms", new Regex("show alarm(?:s)*(.*)", RegexOptions.IgnoreCase))
@@ -56,6 +60,8 @@ namespace AlarmBot
                         .AddIntent("confirmYes", new Regex("(yes|yep|yessir|^y$)", RegexOptions.IgnoreCase))
                         .AddIntent("confirmNo", new Regex("(no|nope|^n$)", RegexOptions.IgnoreCase)));
             });
+
+            services.AddSingleton<IStateStore>(new MemoryStateStore());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

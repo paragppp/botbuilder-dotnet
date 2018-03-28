@@ -122,8 +122,9 @@ namespace AlarmBot.Topics
 
         private async Task<bool> ProcessTopicState(ITurnContext context)
         {
-            string utterance = (context.Activity.Text ?? "").Trim();
-            var userState = await context.UserState().Get<UserData>();
+            var utterance = (context.Activity.Text ?? "").Trim();
+            var userState = context.UserState();
+            var userAlarmsState = await userState.GetOrCreate<AlarmUserState>();
 
             // we are using TopicState to remember what we last asked
             switch (this.TopicState)
@@ -141,11 +142,15 @@ namespace AlarmBot.Topics
                                     if (DateTimeOffset.TryParse((string)payload.Time, out DateTimeOffset time))
                                     {
                                         this.Alarm.Time = new DateTimeOffset(date.Year, date.Month, date.Day, time.Hour, time.Minute, time.Second, date.Offset);
-                                        if (userState.Alarms == null)
+                                        if (userAlarmsState.Alarms == null)
                                         {
-                                            userState.Alarms = new List<Alarm>();
+                                            userAlarmsState.Alarms = new List<Alarm>();
                                         }
-                                        userState.Alarms.Add(this.Alarm);
+                                        userAlarmsState.Alarms.Add(this.Alarm);
+
+
+                                        userState.Set(userAlarmsState);
+
                                         await AddAlarmTopicResponses.ReplyWithAddedAlarm(context, this.Alarm);
                                         // end topic
                                         return false;

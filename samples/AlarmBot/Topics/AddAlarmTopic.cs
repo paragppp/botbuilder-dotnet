@@ -154,7 +154,7 @@ namespace AlarmBot.Topics
                     {
                         case "confirmYes":
                             var userStateManager = context.UserState();
-                            var userData = await userStateManager.Get<AlarmUserState>() ?? new AlarmUserState();
+                            var userData = await userStateManager.GetOrCreate<AlarmUserState>();
 
                             if (userData.Alarms == null)
                             {
@@ -163,7 +163,6 @@ namespace AlarmBot.Topics
                             userData.Alarms.Add(this.Alarm);
 
                             userStateManager.Set(userData);
-                            await userStateManager.SaveChanges();
 
                             await AddAlarmResponses.ReplyWithAddedAlarm(context, this.Alarm);
                             // end topic

@@ -67,7 +67,7 @@ namespace AlarmBot.Topics
 
         public async Task<bool> FindAlarm(ITurnContext context)
         {
-            var userState = await context.UserState().Get<UserData>();
+            var userState = await context.UserState().GetOrCreate<AlarmUserState>();
 
             if (userState.Alarms == null)
             {

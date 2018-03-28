@@ -66,7 +66,7 @@ namespace AlarmBot.Topics
             {
                 case ActivityTypes.Message:
                     var conversationStateManager = context.ConversationState();
-                    var conversationData = await conversationStateManager.Get<AlarmTopicState>();
+                    var conversationData = await conversationStateManager.GetOrCreate<AlarmTopicState>();
                     var result = true;
 
                     switch (context.RecognizedIntents.TopIntent?.Name)
@@ -106,7 +106,6 @@ namespace AlarmBot.Topics
                     }
 
                     conversationStateManager.Set(conversationData);
-                    await conversationStateManager.SaveChanges();
 
                     return result;
                 default:

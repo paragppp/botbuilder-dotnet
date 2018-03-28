@@ -47,7 +47,7 @@ namespace AlarmBot.Topics
 
         public static async Task ShowAlarms(AlarmBotContext context)
         {
-            await ShowAlarmsResponses.ReplyWithShowAlarms(context, (await context.UserState().Get<AlarmUserState>()).Alarms);            
+            await ShowAlarmsResponses.ReplyWithShowAlarms(context, (await context.UserState().GetOrCreate<AlarmUserState>()).Alarms);            
         }
 
     }
