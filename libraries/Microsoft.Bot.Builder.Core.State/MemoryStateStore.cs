@@ -167,7 +167,7 @@ namespace Microsoft.Bot.Builder.Core.State
             {
                 if (newEntry.ETag != existingEntry.ETag)
                 {
-                    throw new StateOptimisticConcurrencyViolation($"An optimistic concurrency violation occurred when trying to save new state for: PartitionKey={newEntry.Namespace};Key={newEntry.Key}. The original ETag value was {newEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
+                    throw new StateOptimisticConcurrencyViolationException($"An optimistic concurrency violation occurred when trying to save new state for: PartitionKey={newEntry.Namespace};Key={newEntry.Key}. The original ETag value was {newEntry.ETag}, but the current ETag value is {existingEntry.ETag}.");
                 }
             }
         }
