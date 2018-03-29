@@ -189,7 +189,7 @@ namespace Microsoft.Bot.Builder.Core.State
             {
                 _data = data ?? throw new ArgumentNullException(nameof(data));
 
-                ETag = data.Value<string>("__BotFramework_ETag");
+                ETag = data.Value<JObject>("@@botFramework").Value<string>("eTag");
             }
 
             public string FilePath { get; }
@@ -203,9 +203,12 @@ tryAgain:
                     {
                         _data = RawValue != null ? JObject.FromObject(RawValue) : new JObject();
 
-                        _data["__BotFramework_RawStateNamespace"] = Namespace;
-                        _data["__BotFramework_RawKey"] = Key;
-                        _data["__BotFramework_ETag"] = Guid.NewGuid().ToString("N");
+                        _data["@@botFramework"] = new JObject()
+                        {
+                            ["rawNamespace"] = Namespace,
+                            ["rawKey"] = Key,
+                            ["eTag"] = Guid.NewGuid().ToString("N")
+                        };
 
                         using (var textWriter = new StreamWriter(fileStream, Encoding.UTF8))
                         using (var jsonWriter = new JsonTextWriter(textWriter))
