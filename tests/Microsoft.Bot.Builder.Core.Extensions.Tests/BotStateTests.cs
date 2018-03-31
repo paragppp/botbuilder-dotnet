@@ -34,8 +34,10 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
                        {
                            await context.ConversationState().Get<TestState>();
                        }
-                       catch(InvalidOperationException)
+                       catch(InvalidOperationException exception)
                        {
+                           StringAssert.Contains(exception.Message, nameof(IStateManagerServiceResolver));
+                           StringAssert.Contains(exception.Message, nameof(StateManagementMiddleware));
                        }
                    }
                 )
@@ -47,10 +49,9 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         public async Task State_UnsetStateShouldReturnNull()
         {
             var adapter = new TestAdapter()
-                .UseServices(serviceCollection =>
-                {
-                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
-                });
+                .Use(new StateManagementMiddleware()
+                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseUserState());
 
             await new TestFlow(adapter,
                     async (context) =>
@@ -68,10 +69,9 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         public async Task State_UnsavedStateShouldNotPersist()
         {
             var adapter = new TestAdapter()
-                .UseServices(serviceCollection =>
-                {
-                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
-                });
+                .Use(new StateManagementMiddleware()
+                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseUserState());
 
             await new TestFlow(adapter,
                     async (context) =>
@@ -112,10 +112,9 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         public async Task State_SavedStateIsRecalledOnNextTurn()
         {
             var adapter = new TestAdapter()
-                .UseServices(serviceCollection =>
-                {
-                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
-                });
+                .Use(new StateManagementMiddleware()
+                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseUserState());
 
             await new TestFlow(adapter,
                     async (context) =>
@@ -161,30 +160,29 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
             string testStateValue = Guid.NewGuid().ToString();
 
             TestAdapter adapter = new TestAdapter()
-                .UseServices(serviceCollection =>
-                {
-                    serviceCollection.Add<IStateStore>(new MemoryStateStore());
-                });
+                .Use(new StateManagementMiddleware()
+                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseStateManager("custom"));
 
             await new TestFlow(adapter, async (context) =>
                     {
-                        var customState = context.State("custom");
+                        var customNamespaceStateManager = context.State("custom");
 
                         switch (context.Activity.AsMessageActivity().Text)
                         {
                             case "set value":
-                                customState.Set(new TestState
+                                customNamespaceStateManager.Set(new TestState
                                 {
                                     Value = testStateValue
                                 });
 
-                                await customState.SaveChanges();
+                                await customNamespaceStateManager.SaveChanges();
 
                                 await context.SendActivity("value saved");
                                 break;
 
                             case "get value":
-                                var stateEntry = await customState.Get<TestState>();
+                                var stateEntry = await customNamespaceStateManager.Get<TestState>();
 
                                 Assert.IsNotNull(stateEntry);
 
