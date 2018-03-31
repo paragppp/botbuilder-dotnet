@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Schema;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.Bot.Builder
 {
@@ -28,7 +27,6 @@ namespace Microsoft.Bot.Builder
         private readonly IList<UpdateActivityHandler> _onUpdateActivity = new List<UpdateActivityHandler>();
         private readonly IList<DeleteActivityHandler> _onDeleteActivity = new List<DeleteActivityHandler>();
 
-        private readonly IServiceProvider _turnServiceProvider;
         private readonly TurnContextServiceCollection _turnServices;
 
         /// <summary>
@@ -40,13 +38,12 @@ namespace Microsoft.Bot.Builder
         /// <exception cref="ArgumentNullException"><paramref name="activity"/> or
         /// <paramref name="adapter"/> is <c>null</c>.</exception>
         /// <remarks>For use by bot adapter implementations only.</remarks>
-        public TurnContext(BotAdapter adapter, Activity activity, IServiceProvider serviceProvider)
+        public TurnContext(BotAdapter adapter, Activity activity)
         {
             _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
             _activity = activity ?? throw new ArgumentNullException(nameof(activity));
-            _turnServiceProvider = serviceProvider ?? adapter.ServiceProvider;
 
-            _turnServices = new TurnContextServiceCollection(_turnServiceProvider);
+            _turnServices = new TurnContextServiceCollection();
         }
 
         /// <summary>
@@ -115,7 +112,7 @@ namespace Microsoft.Bot.Builder
         /// <summary>
         /// Gets the services registered on this context object.
         /// </summary>
-        public ITurnContextServiceCollection Services => _services;
+        public ITurnContextServiceCollection Services => _turnServices;
 
         /// <summary>
         /// Gets the activity associated with this turn; or <c>null</c> when processing

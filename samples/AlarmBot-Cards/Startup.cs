@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.IO;
 using System.Text.RegularExpressions;
 using AlarmBot.Models;
 using Microsoft.AspNetCore.Builder;
@@ -34,7 +35,7 @@ namespace AlarmBot
         {
             services.AddSingleton(_ => Configuration);
             services.AddBot<AlarmBot>(options =>
-            { 
+            {
                 options.CredentialProvider = new ConfigurationCredentialProvider(Configuration);
 
                 var middleware = options.Middleware;
@@ -45,11 +46,16 @@ namespace AlarmBot
                     await context.SendActivity("Sorry, it looks like something went wrong!");
                 }));
 
+                // Add and configure state management middleware
+                middleware.Add(new StateManagementMiddleware()
+                                .UseDefaultStateStore(new MemoryStateStore())
+                                .UseConversationState()
+                                .UseUserState()
+                                .AutoLoadAll()
+                                .AutoSaveAll());
+
                 // Add middleware to send periodic typing activities until the bot responds. The initial
                 // delay before sending a typing activity and the frequency of additional activities can also be specified
-                middleware.Add(new StateManagerMiddleware()
-                                    .AutoLoadAll()
-                                    .AutoSaveAll());
                 middleware.Add(new ShowTypingMiddleware());
                 middleware.Add(new RegExpRecognizerMiddleware()
                         .AddIntent("showAlarms", new Regex("show alarm(?:s)*(.*)", RegexOptions.IgnoreCase))
@@ -60,8 +66,6 @@ namespace AlarmBot
                         .AddIntent("confirmYes", new Regex("(yes|yep|yessir|^y$)", RegexOptions.IgnoreCase))
                         .AddIntent("confirmNo", new Regex("(no|nope|^n$)", RegexOptions.IgnoreCase)));
             });
-
-            services.AddSingleton<IStateStore>(new MemoryStateStore());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

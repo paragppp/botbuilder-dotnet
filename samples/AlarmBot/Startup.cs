@@ -44,11 +44,16 @@ namespace AlarmBot
                         await context.SendActivity("Sorry, it looks like something went wrong!");
                     }));
 
+                // Add and configure state management middleware
+                middleware.Add(new StateManagementMiddleware()
+                                .UseDefaultStateStore(new MemoryStateStore())
+                                .UseConversationState()
+                                .UseUserState()
+                                .AutoLoadAll()
+                                .AutoSaveAll());
+
                 // Add middleware to send periodic typing activities until the bot responds. The initial
                 // delay before sending a typing activity and the frequency of additional activities can also be specified
-                middleware.Add(new StateManagerMiddleware()
-                                    .AutoLoadAll()
-                                    .AutoSaveAll());
                 middleware.Add(new ShowTypingMiddleware());
                 middleware.Add(new RegExpRecognizerMiddleware()
                                 .AddIntent("showAlarms", new Regex("show alarm(?:s)*(.*)", RegexOptions.IgnoreCase))

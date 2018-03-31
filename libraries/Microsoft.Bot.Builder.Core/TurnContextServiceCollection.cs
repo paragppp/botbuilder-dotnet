@@ -1,10 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Microsoft.Bot.Builder
 {
@@ -37,11 +34,9 @@ namespace Microsoft.Bot.Builder
     public sealed class TurnContextServiceCollection : ITurnContextServiceCollection, IDisposable
     {
         private readonly Dictionary<string, object> _services = new Dictionary<string, object>();
-        private readonly IServiceProvider _serviceProvider;
 
-        public TurnContextServiceCollection(IServiceProvider serviceProvider)
+        public TurnContextServiceCollection()
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         public TService Get<TService>(string key) where TService : class
@@ -50,12 +45,7 @@ namespace Microsoft.Bot.Builder
 
             if(!_services.TryGetValue(key, out var service))
             {
-                service = _serviceProvider.GetService<TService>();
-
-                if (service != default(TService))
-                {
-                    _services.Add(key, service);
-                }
+                // TODO: log that we didn't find the requested service
             }
 
             return service as TService;
