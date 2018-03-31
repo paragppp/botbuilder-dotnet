@@ -73,7 +73,7 @@ namespace Microsoft.Bot.Builder.Core.State
             {
                 var stateEntryKey = Path.GetFileNameWithoutExtension(stateEntryFile.Name);
 
-                loadTasks.Add(Task.Run(() => LoadFileSystemStateStoreEntry(stateNamespace, stateEntryKey, new FileInfo(stateEntryKey))));
+                loadTasks.Add(Task.Run(() => LoadFileSystemStateStoreEntry(stateNamespace, stateEntryKey, stateEntryFile)));
             }
 
             await Task.WhenAll(loadTasks);
@@ -137,17 +137,24 @@ namespace Microsoft.Bot.Builder.Core.State
 
         private static FileInfo GetStateStoreEntryFileInfo(string basePath, string stateNamespace, string key) => new FileInfo(GetStateStoreEntryFilePath(basePath, stateNamespace, key));
 
-
         private static string GetStateStoreEntryFilePath(string basePath, string stateNamespace, string key) => Path.Combine(ConvertStateNamespaceToDirectoryPath(basePath, stateNamespace), ConvertKeyToFileName(key));
 
-        private static string ConvertStateNamespaceToDirectoryPath(string basePath, string stateNamespace)
+        public static string ConvertStateNamespaceToDirectoryPath(string basePath, string stateNamespace)
         {
+            if (string.IsNullOrEmpty(stateNamespace))
+            {
+                throw new ArgumentException("Expected a non-null/empty value.", nameof(stateNamespace));
+            }
             // TODO: deal with illegal characters
+            if (stateNamespace[0] == Path.DirectorySeparatorChar || stateNamespace[0] == Path.AltDirectorySeparatorChar)
+            {
+                stateNamespace = stateNamespace.Substring(1);
+            }
 
             return Path.Combine(basePath, stateNamespace);
         }
 
-        private static string ConvertKeyToFileName(string key)
+        public static string ConvertKeyToFileName(string key)
         {
             // TODO: deal with illegal characters
             //string normalizedKeyFileName = Path.InvalidPathChars
@@ -159,8 +166,6 @@ namespace Microsoft.Bot.Builder.Core.State
         {
             try
             {
-                var memoryStream = new MemoryStream((int)storeEntryFileInfo.Length);
-
                 using (var fileStream = new FileStream(storeEntryFileInfo.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 8192, options: FileOptions.Asynchronous | FileOptions.SequentialScan))
                 using (var textReader = new StreamReader(fileStream, Encoding.UTF8))
                 using (var jsonReader = new JsonTextReader(textReader))
@@ -170,8 +175,14 @@ namespace Microsoft.Bot.Builder.Core.State
                     return new FileSystemStateStoreEntry(stateNamespace, key, storeEntryFileInfo.FullName, data);
                 }                
             }
+            catch (DirectoryNotFoundException)
+            {
+                // TODO: log
+                return default(IStateStoreEntry);
+            }
             catch (FileNotFoundException)
             {
+                // TODO: log
                 return default(IStateStoreEntry);
             }
         }
