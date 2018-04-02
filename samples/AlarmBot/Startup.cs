@@ -46,7 +46,7 @@ namespace AlarmBot
 
                 // Add and configure state management middleware
                 middleware.Add(new StateManagementMiddleware()
-                                .UseDefaultStateStore(new MemoryStateStore())
+                                .UseDefaultStore(new MemoryStateStore())
                                 .UseConversationState()
                                 .UseUserState()
                                 .AutoLoadAll()

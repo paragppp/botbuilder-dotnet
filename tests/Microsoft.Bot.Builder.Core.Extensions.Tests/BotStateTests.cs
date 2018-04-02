@@ -50,7 +50,7 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         {
             var adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseDefaultStore(new MemoryStateStore())
                         .UseUserState());
 
             await new TestFlow(adapter,
@@ -70,7 +70,7 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         {
             var adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseDefaultStore(new MemoryStateStore())
                         .UseUserState());
 
             await new TestFlow(adapter,
@@ -113,7 +113,7 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
         {
             var adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseDefaultStore(new MemoryStateStore())
                         .UseUserState());
 
             await new TestFlow(adapter,
@@ -161,8 +161,8 @@ namespace Microsoft.Bot.Builder.Core.Extensions.Tests
 
             TestAdapter adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
-                        .UseStateManager("custom"));
+                        .UseDefaultStore(new MemoryStateStore())
+                        .UseState("custom"));
 
             await new TestFlow(adapter, async (context) =>
                     {

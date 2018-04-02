@@ -21,16 +21,16 @@ namespace Microsoft.Bot.Builder.Core.State
         {
         }
 
-        public StateManagementMiddleware UseStateStore(string name, IStateStore stateStore)
+        public StateManagementMiddleware UseStore(string name, IStateStore stateStore)
         {
             _configuredStateStores[name] = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
 
             return this;
         }
 
-        public StateManagementMiddleware UseDefaultStateStore(IStateStore stateStore) => UseStateStore(DefaultStateStoreName, stateStore);
+        public StateManagementMiddleware UseDefaultStore(IStateStore stateStore) => UseStore(DefaultStateStoreName, stateStore);
 
-        public StateManagementMiddleware UseStateManager(Type stateManagerType, Action<StateManagerConfigurationBuilder> configure = null)
+        public StateManagementMiddleware UseState(Type stateManagerType, Action<StateManagerConfigurationBuilder> configure = null)
         {
             if (stateManagerType == null)
             {
@@ -44,10 +44,10 @@ namespace Microsoft.Bot.Builder.Core.State
 
             if (stateManagerType == typeof(StateManager))
             {
-                throw new ArgumentException($"Cannot register the standard {typeof(StateManager).Name}, only custom state managers.", nameof(stateManagerType));
+                throw new ArgumentException($"Cannot register the standard {typeof(StateManager).Name}; only custom state managers are supported.", nameof(stateManagerType));
             }
 
-            return UseStateManager(new StateManagerConfiguration
+            return UseState(new StateManagerConfiguration
             {
                 StateNamespace = BuildStateManagerNamespaceForType(stateManagerType),
                 StateManagerType = stateManagerType,
@@ -56,15 +56,15 @@ namespace Microsoft.Bot.Builder.Core.State
             configure);
         }
 
-        public StateManagementMiddleware UseStateManager(string stateNamespace, Action<StateManagerConfigurationBuilder> configure = null) =>
-            UseStateManager(new StateManagerConfiguration
+        public StateManagementMiddleware UseState(string stateNamespace, Action<StateManagerConfigurationBuilder> configure = null) =>
+            UseState(new StateManagerConfiguration
             {
                 StateNamespace = stateNamespace,
                 StateStoreName = DefaultStateStoreName,
             },
             configure);
 
-        private StateManagementMiddleware UseStateManager(StateManagerConfiguration stateManagerConfiguration, Action<StateManagerConfigurationBuilder> configure = null)
+        private StateManagementMiddleware UseState(StateManagerConfiguration stateManagerConfiguration, Action<StateManagerConfigurationBuilder> configure = null)
         {
             if (stateManagerConfiguration == null)
             {
@@ -274,10 +274,8 @@ namespace Microsoft.Bot.Builder.Core.State
                 {
                     throw new InvalidOperationException($"State manager of type \"{stateManagerConfiguration.StateManagerType.FullName}\" was configured to use a state store named \"{stateManagerConfiguration.StateStoreName}\", but no such named state store was configured. Please check your middleware configuration.");
                 }
-                else
-                {
-                    throw new InvalidOperationException($"State manager for namespace \"{stateManagerConfiguration.StateNamespace}\" was configured to use a state store named \"{stateManagerConfiguration.StateStoreName}\", but no such named state store was configured. Please check your middleware configuration.");
-                }
+
+                throw new InvalidOperationException($"State manager for namespace \"{stateManagerConfiguration.StateNamespace}\" was configured to use a state store named \"{stateManagerConfiguration.StateStoreName}\", but no such named state store was configured. Please check your middleware configuration.");
             }
 
             var stateManager = default(IStateManager);
@@ -320,14 +318,14 @@ namespace Microsoft.Bot.Builder.Core.State
 
         private StateManagerConfiguration Configuration { get; }
 
-        public StateManagerConfigurationBuilder UseStateStore(string stateStoreName)
+        public StateManagerConfigurationBuilder UseStore(string storeName)
         {
-            if (string.IsNullOrEmpty(stateStoreName))
+            if (string.IsNullOrEmpty(storeName))
             {
-                throw new ArgumentException("Expected a non-null/empty value.", nameof(stateStoreName));
+                throw new ArgumentException("Expected a non-null/empty value.", nameof(storeName));
             }
 
-            Configuration.StateStoreName = stateStoreName;
+            Configuration.StateStoreName = storeName;
 
             return this;
         }
@@ -371,31 +369,51 @@ namespace Microsoft.Bot.Builder.Core.State
     public static class StateManagementMiddlewareExtensions
     {
         public static StateManagementMiddleware UseState<TStateManager>(this StateManagementMiddleware stateManagementMiddleware, string storeName = null) where TStateManager : class, IStateManager =>
-            stateManagementMiddleware.UseState<TStateManager>(storeName == null ? (Action<StateManagerConfigurationBuilder>)null : cb => cb.UseStateStore(storeName));
+            stateManagementMiddleware.UseState<TStateManager>(storeName == null ? (Action<StateManagerConfigurationBuilder>)null : cb => cb.UseStore(storeName));
 
         public static StateManagementMiddleware UseState<TStateManager>(this StateManagementMiddleware stateManagementMiddleware, Action<StateManagerConfigurationBuilder> configure = null) where TStateManager : class, IStateManager =>
-            stateManagementMiddleware.UseStateManager(typeof(TStateManager), configure);
+            stateManagementMiddleware.UseState(typeof(TStateManager), configure);
 
-        public static StateManagementMiddleware UseUserState(this StateManagementMiddleware stateManagementMiddleware, string storeName = null) =>
+        public static StateManagementMiddleware UseUserState(this StateManagementMiddleware stateManagementMiddleware, string storeName)
+        {
+            if (storeName == null)
+            {
+                throw new ArgumentNullException(nameof(storeName));
+            }
+
+            return stateManagementMiddleware.UseUserState(cb =>
+            {
+                cb.UseStore(storeName);
+            });
+        }
+
+        public static StateManagementMiddleware UseUserState(this StateManagementMiddleware stateManagementMiddleware, Action<StateManagerConfigurationBuilder> configure = null) =>
             stateManagementMiddleware.UseState<IUserStateManager>(cb =>
             {
-                cb.UseFactory((tc, ss) => new UserStateManager(tc.Activity.From.Id, ss));
+                configure?.Invoke(cb);
 
-                if (storeName != null)
-                {
-                    cb.UseStateStore(storeName);
-                }
+                cb.UseFactory((tc, ss) => new UserStateManager(tc.Activity.From.Id, ss));
             });
 
-        public static StateManagementMiddleware UseConversationState(this StateManagementMiddleware stateManagementMiddleware, string storeName = null) =>
+        public static StateManagementMiddleware UseConversationState(this StateManagementMiddleware stateManagementMiddleware, string storeName)
+        {
+            if (storeName == null)
+            {
+                throw new ArgumentNullException(nameof(storeName));
+            }
+
+            return stateManagementMiddleware.UseConversationState(cb =>
+            {
+                cb.UseStore(storeName);
+            });
+        }
+
+        public static StateManagementMiddleware UseConversationState(this StateManagementMiddleware stateManagementMiddleware, Action<StateManagerConfigurationBuilder> configure = null) =>
             stateManagementMiddleware.UseState<IConversationStateManager>(cb =>
             {
-                cb.UseFactory((tc, ss) => new ConversationStateManager(tc.Activity.ChannelId, tc.Activity.Conversation.Id, ss));
+                configure?.Invoke(cb);
 
-                if (storeName != null)
-                {
-                    cb.UseStateStore(storeName);
-                }
+                cb.UseFactory((tc, ss) => new ConversationStateManager(tc.Activity.ChannelId, tc.Activity.Conversation.Id, ss));
             });
     }
 

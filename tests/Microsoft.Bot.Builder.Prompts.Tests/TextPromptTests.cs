@@ -20,7 +20,7 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         {
             TestAdapter adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseDefaultStore(new MemoryStateStore())
                         .UseConversationState());
 
             await new TestFlow(adapter, MyTestPrompt)
@@ -36,7 +36,7 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         {
             TestAdapter adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseDefaultStore(new MemoryStateStore())
                         .UseConversationState());
 
             await new TestFlow(adapter, LengthCheckPromptTest)
@@ -51,7 +51,7 @@ namespace Microsoft.Bot.Builder.Prompts.Tests
         {
             TestAdapter adapter = new TestAdapter()
                 .Use(new StateManagementMiddleware()
-                        .UseDefaultStateStore(new MemoryStateStore())
+                        .UseDefaultStore(new MemoryStateStore())
                         .UseConversationState());
 
             await new TestFlow(adapter, LengthCheckPromptTest)
